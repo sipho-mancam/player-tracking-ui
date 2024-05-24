@@ -81,8 +81,8 @@ def start_insert()->None:
     app.exec_()
 
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = TeamInputWidget()
-    ex.show()
-    sys.exit(app.exec_())
+# if __name__ == '__main__':
+#     app = QApplication(sys.argv)
+#     ex = TeamInputWidget()
+#     ex.show()
+#     sys.exit(app.exec_())
