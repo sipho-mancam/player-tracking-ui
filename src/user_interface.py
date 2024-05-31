@@ -107,8 +107,6 @@ class ButtonWithID(QPushButton):
                         background: #aaa;
                     }
                 """)
-
-
     def registerCallback(self, bt_callback)->None:
         self.__button_click_callback = bt_callback
     
@@ -183,7 +181,6 @@ class TrackingData:
         return math.sqrt(((point1[0]-point2[0])**2) + ((point1[1] - point2[1])**2))
 
     def get_clicked(self, x, y)->dict|None:
-        print(f"Mouse Coordinates: {x}, {y}")
         for det in self.__tracking_data:
             if self.eucliden_distance(tuple(det.get('ui_coordinates')), (x,y)) <= 20:
                 self.__clicked_object = det
@@ -211,8 +208,7 @@ class TrackingData:
                     det['connected'] = self.__toggle_connections
                     det['next_link'] = self.__connections_list[-1].get('coordinates') if len(self.__connections_list) > 0 else det.get('coordinates')
                     self.__connections_list.append(det)
-                   
-                    
+                         
         for det in self.__tracking_data:
             if 'clicked' in det and self.__clicked_object.get('tracking-id') != det.get('tracking-id'):
                 det['clicked'] = False
@@ -325,7 +321,7 @@ class PlayerIDAssociationApp(QWidget):
         super().__init__()
         self.cap = None
         self.timer = QTimer()
-        self.timer.timeout.connect(self.update_frame)
+        self.timer.timeout.connect(self.update)
         self.__frame = None
         self.__kafka_consumer = None
         self.__tracking_data = TrackingData()
@@ -613,10 +609,11 @@ class PlayerIDAssociationApp(QWidget):
                 #     clone_bg = cv.putText(clone_bg, f"{det['track_id']}", (x_scaled-15, y_scaled+5), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,0), 2)
         return clone_bg
 
-    def update_frame(self):
+    def update(self):
         frame = self.__frame.copy()
         if frame is None:
             return
+        
         # check if there's any data ready here.  
         if self.__kafka_consumer is not None:
             if self.__kafka_consumer.is_data_ready():

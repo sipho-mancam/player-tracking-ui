@@ -31,6 +31,16 @@ class TeamManager:
         self.__raw_data = None
         self.__players = [Player(id) for id in player_ids]
         self.__team_id = team_id
+        self.__formation = None
+
+    
+    def init(self)->None:
+        """
+        1. This call should block until all team specific settings are implemented.
+        Init Sequence:
+            a. Load Formations.
+        """
+        
 
 
     def update_players(self, tracking_data:list[dict])->None:

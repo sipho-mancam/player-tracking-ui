@@ -46,15 +46,15 @@ class KConsumer:
                 if msg is None:
                 #    print("waiting ...")
                    pass
-                #    print("waiting ...")
                 elif msg.error():
                     # you need to publish to the error log
                     print("ERROR: %s".format(msg.error()))
                 else:
                     message = msg.value().decode('utf-8')
-                    # print(message)
                     self.__data_queue.append(message)
                     self.__tracking_data_queue.append(message)
+                    if len(self.__tracking_data_queue) > 5:
+                        self.__tracking_data_queue.pop(0)
                     self.__data_event.set()
 
             print("Cleaning up and exiting ...")
