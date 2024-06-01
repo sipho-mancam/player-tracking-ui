@@ -112,5 +112,8 @@ class FormationsManager:
     
     def get_players_list(self)->list:
         return self.__current_formation['players']
+
+    def get_formation(self)->dict:
+        return self.__current_formation
     
                 

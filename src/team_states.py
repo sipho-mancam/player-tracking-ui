@@ -2,6 +2,7 @@ import json
 from cfg.paths_config import __TRACKING_DATA_DIR__
 from pathlib import Path
 import time
+from formations import FormationsManager
 
 class Player:
     def __init__(self, id:int)->None:
@@ -10,6 +11,9 @@ class Player:
         self.__coordinates = None
         self.__raw_data = None
         self.__tracking_id = 0
+
+    def is_init(self)->bool:
+        return not (self.__coordinates is None)
 
     def update_coordinates(self, tracking_data:dict)->None:
         self.__raw_data = tracking_data
@@ -27,20 +31,48 @@ class Player:
 
 
 class TeamManager:
-    def __init__(self, team_id, player_ids:list)->None:
+    def __init__(self, team_id, player_ids:list, side=0)->None:
         self.__raw_data = None
         self.__players = [Player(id) for id in player_ids]
         self.__team_id = team_id
-        self.__formation = None
+        self.__formation_manager = FormationsManager()
+        self.__side = side
 
+    def get_id(self)->int:
+        return self.__team_id
+
+    def get_side(self)->int:
+        return self.__side
+
+    def is_init(self)->bool:
+        return self.__check_init()
     
-    def init(self)->None:
+    def __check_init(self)->bool:
+        is_init = True
+        for player in self.__players:
+            if not player.is_init():
+                is_init = False
+                return is_init
+        return is_init
+    
+    
+    def init(self, formation_name, create:bool)->None:
         """
         1. This call should block until all team specific settings are implemented.
         Init Sequence:
             a. Load Formations.
         """
-        
+        if create:
+            self.__formation_manager.create_formation(formation_name)
+            self.__formation_manager.get_formation() # get the currently selected formation.
+    
+    def get_formations_manager(self)->FormationsManager:
+        return self.__formation_manager
+
+    def select_formation(self, formation_name:str)->None:
+        # Select formations from formations manager and load it in.
+        self.__formation_manager.select_formation(formation_name)
+
 
 
     def update_players(self, tracking_data:list[dict])->None:
@@ -61,9 +93,20 @@ class TeamManager:
 class TeamsManager:
     def __init__(self, teams_init:list[dict])->None:
         self.__teams_init = teams_init
-        self.__team_a = TeamManager(0, self.__teams_init.get('Team A'))
-        self.__team_b = TeamManager(1, self.__teams_init.get('Team B'))
-
+        self.__team_a = TeamManager(0, self.__teams_init.get('Team A'), 0)
+        self.__team_b = TeamManager(1, self.__teams_init.get('Team B'), 1) # right
+        self.__teams_init = False
+    
+   
+    # This checks if we have initialized the initial state with formations
+    def is_init(self)->bool:
+        return (self.__team_a.is_init() and self.__team_b.is_init())
+    
+    def get_current_team_initializing(self)->TeamManager:
+        if not self.__team_a.is_init():
+            return self.__team_a
+        
+        return self.__team_b
     
     def update_team(self, tracking_data:list[dict])->None:
         self.__team_a.update_players(tracking_data)

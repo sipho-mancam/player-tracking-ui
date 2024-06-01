@@ -131,6 +131,20 @@ class TrackingData:
         self.__toggle_highlight = False
         self.__connections_list = []
 
+    def get_teams_manager(self)->TeamsManager:
+        return self.__teams_manager
+    
+    def set_formations_data(self, formations_data:list, team:int)->None:
+        data = []
+        obj = {}
+
+        for i, coord in enumerate(formations_data):
+            obj['coordinates'] = coord
+            obj['tracking-id'] = i + team*12
+            data.append(obj)
+            obj = {}
+        self.__tracking_data = data
+
     def update(self, data)->None:
         if data is not None:
             self.__tracking_data = data
@@ -229,7 +243,12 @@ class TrackingData:
                 det['team'] = id.get('team')
                 self.__associations_table[det.get('tracking-id')] = id
                 self.__current_clicked_id = -1
-    
+
+    def search_id(self, id:dict)->str:
+        for key in self.__associations_table.keys():
+            t_id = self.__associations_table[key]
+            if (t_id.get('id') is not None) and t_id.get('id') == id.get('id') and (t_id.get('team') is not None) and id.get('team') == t_id.get('team'):
+                return key
 
     def get_connections_list(self)->list|None:
         if len(self.__connections_list) <= 1:
@@ -496,7 +515,7 @@ class PlayerIDAssociationApp(QWidget):
                     self.image_label.registerFormationsCB(self.__formations_manager.handle_mouse_click)
                     self.image_label.setFormationsRoutine()
             else:
-                self.__formations_manager.select_formation(selected_option)
+                self.__tracking_data.get_teams_manager().get_current_team_initializing().get_formations_manager().select_formation(selected_option)
                     
     def check_formation_complete(self)->bool:
         if self.__formations_manager.is_players_11() and self.__formations_manager.is_creating_formations():
@@ -506,8 +525,6 @@ class PlayerIDAssociationApp(QWidget):
                 self.image_label.clearFormationsRoutine()
             # clear the formation mouse handler
             # call the save formation call
-
-
 
     def update_from_formations(self, frame:cv2.Mat)->None:
         for player in self.__formations_manager.get_players_list():
@@ -576,10 +593,6 @@ class PlayerIDAssociationApp(QWidget):
                     color = (0, 0, 255)
                 else:
                     color = det.get('color') if det.get('color') is not None else (255, 255, 255)
-                    # if _  % 2 == 0:
-                    #     color = (0, 75,50)
-                    # else:
-                    #     color = (255, 0, 53)
 
                     if det.get('clicked') is not None and det.get('clicked'):
                         color = (255, 0, 0)
@@ -593,7 +606,6 @@ class PlayerIDAssociationApp(QWidget):
                 if det.get('is_child'):
                     color = (255, 0, 255)
                 
-                # det.get('color') if det.get('colors') else
                 clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 15,  color, cv2.FILLED)
 
                 if det.get('player-id') is not None:
@@ -613,9 +625,26 @@ class PlayerIDAssociationApp(QWidget):
         frame = self.__frame.copy()
         if frame is None:
             return
+
+        current_team_manager = self.__tracking_data.get_teams_manager()
+        if not current_team_manager.is_init():
+            current_team = current_team_manager.get_current_team_initializing()
+            if current_team.get_formations_manager().is_creating_formations():
+                self.update_mini_map(frame, None) 
+            else: # you have selected some formation, now you wanna load it.
+                team_formation = current_team.get_formations_manager().get_formation()
+                if len(team_formation) > 0:
+                    if current_team.get_side() == 0:
+                        # pprint(team_formation['normalized'])
+                        self.__tracking_data.set_formations_data(team_formation['normalized'], current_team.get_id())
+                    else:
+                        self.__tracking_data.set_formations_data(team_formation['normalized_right'], current_team.get_id())
+                    
+                    self.__tracking_data.update(self.__tracking_data.get_data())
+                    self.update_mini_map(frame, self.__tracking_data.get_data())     
         
         # check if there's any data ready here.  
-        if self.__kafka_consumer is not None:
+        elif self.__kafka_consumer is not None:
             if self.__kafka_consumer.is_data_ready():
                 tracking_data = self.__kafka_consumer.getTrackingData(as_json=True)
                 if tracking_data and  'tracks' in tracking_data:
@@ -624,8 +653,7 @@ class PlayerIDAssociationApp(QWidget):
 
                 self.update_mini_map(frame, self.__tracking_data.get_data())
 
-        if self.__formations_manager.is_creating_formations():
-            self.update_mini_map(frame, None)
+        
 
         height, width, channel = frame.shape
         bytes_per_line = 3 * width
