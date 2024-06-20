@@ -145,9 +145,14 @@ class TrackingData:
             obj = {}
         self.__tracking_data = data
 
-    def update(self, data)->None:
+    def update(self, data, associate=False)->None:
         if data is not None:
             self.__tracking_data = data
+
+            if associate and not self.__teams_manager.is_associations_init():
+                # Perform associations here 
+                self.__teams_manager.perform_associations(self.__tracking_data)
+
             for det in self.__tracking_data:
                 if det.get('tracking-id') == self.__current_clicked_id:
                     det['clicked'] = True
@@ -336,8 +341,8 @@ class SaveFormation(QDialog):
 
 
 class PlayerIDAssociationApp(QWidget):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.cap = None
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
@@ -347,6 +352,7 @@ class PlayerIDAssociationApp(QWidget):
         self.__kafka_producer = None
         self.__team_sheets = None
         self.__formations_manager = FormationsManager()
+        self.__init_associations = False
         self.read_team_sheets()
         self.initUI()
 
@@ -362,9 +368,14 @@ class PlayerIDAssociationApp(QWidget):
             data = json.load(fp)
             self.__team_sheets = data
 
+    def init_associations(self)->None:
+        # if not self.__init_associations
+        self.__init_associations = True
+
     def initUI(self):
         self.setWindowTitle('Player Tracking Interface')
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)  # Disable maximize button
+        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)  # Disable maximize button
+        
       
         # Main layout
         main_layout = QVBoxLayout()
@@ -377,17 +388,19 @@ class PlayerIDAssociationApp(QWidget):
         right_vertical_layout = QVBoxLayout()
 
         connect_button = StyledButton('Connect Players', self)
-        start_associations = StyledButton('Start Associations', self)
+        self.start_associations = StyledButton('Start Associations', self)
         highlight_button = StyledButton('Start Highlighting', self)
 
         connect_button.clicked.connect(connect_button.toggle_color)
-        start_associations.clicked.connect(start_associations.toggle_color)
+        self.start_associations.clicked.connect(self.start_associations.toggle_color)
+        self.start_associations.clicked.connect(self.init_associations)
+
         highlight_button.clicked.connect(highlight_button.toggle_color)
 
         connect_button.clicked.connect(self.__tracking_data.toggle_connections)
         highlight_button.clicked.connect(self.__tracking_data.toggle_highlight)
 
-        top_bar.addWidget(start_associations)
+        top_bar.addWidget(self.start_associations)
         top_bar.addWidget(connect_button)
         top_bar.addWidget(highlight_button)
 
@@ -410,8 +423,8 @@ class PlayerIDAssociationApp(QWidget):
             row, col = divmod(i, 3)
             left_grid.addWidget(btn, row, col)
         
-        add_team_a_formation = ButtonWithID('Add Formation', {'id':-1, 'team':'A'}, self)
-        add_team_a_formation.setStyleSheet("""
+        self.add_team_a_formation = ButtonWithID('Add Formation', {'id':-1, 'team':'A'}, self)
+        self.add_team_a_formation.setStyleSheet("""
                                     QPushButton {
                                            border-style:outset;
                                            border-radius: 20px;
@@ -423,9 +436,9 @@ class PlayerIDAssociationApp(QWidget):
                                     }
                                            """)
         
-        add_team_a_formation.clicked.connect(self.show_add_formation_dialog)
+        self.add_team_a_formation.clicked.connect(self.show_add_formation_dialog)
 
-        left_grid.addWidget(add_team_a_formation)
+        left_grid.addWidget(self.add_team_a_formation)
 
         team_a_text = QLabel('Team A', self)
 
@@ -450,8 +463,8 @@ class PlayerIDAssociationApp(QWidget):
             row, col = divmod(i, 3)
             right_grid.addWidget(btn, row, col)
 
-        add_team_b_formation = ButtonWithID('Add Formation', {'id':-1, 'team':'B'}, self)
-        add_team_b_formation.setStyleSheet("""
+        self.add_team_b_formation = ButtonWithID('Add Formation', {'id':-1, 'team':'B'}, self)
+        self.add_team_b_formation.setStyleSheet("""
                                     QPushButton {
                                            border-style:outset;
                                            border-radius: 20px;
@@ -463,9 +476,9 @@ class PlayerIDAssociationApp(QWidget):
                                     }
                                            """)
         
-        add_team_b_formation.clicked.connect(self.show_add_formation_dialog)
+        self.add_team_b_formation.clicked.connect(self.show_add_formation_dialog)
 
-        right_grid.addWidget(add_team_b_formation)
+        right_grid.addWidget(self.add_team_b_formation)
     
         team_b_text = QLabel('Team B', self)
         team_b_text.setStyleSheet(""" 
@@ -482,6 +495,7 @@ class PlayerIDAssociationApp(QWidget):
         self.image_label = ClickableLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.registerCallback(self.__tracking_data.get_clicked)
+        
         image_layout = QVBoxLayout()
         image_layout.addWidget(self.image_label)
         image_layout.setContentsMargins(0,0,0,0)
@@ -501,7 +515,12 @@ class PlayerIDAssociationApp(QWidget):
         self.__frame = cv2.imread(__MINI_MAP_BG__.as_posix(), cv2.COLOR_BGR2RGB)
         height, width,  _ = self.__frame.shape
         self.__frame = cv2.resize(self.__frame, (width//2, height//2-100))
+        self.image_label.setFixedSize(width//2, height//2-100)
+        self.image_label.setMargin(0)
         self.start_updates_timer()
+        self.show()
+
+        self.setFixedSize(self.size())
 
     def show_add_formation_dialog(self)->None:
         dialog = CustomDialog(self.__formations_manager.get_formations(), self)
@@ -635,30 +654,55 @@ class PlayerIDAssociationApp(QWidget):
                 team_formation = current_team.get_formations_manager().get_formation()
                 if len(team_formation) > 0:
                     if current_team.get_side() == 0:
-                        # pprint(team_formation['normalized'])
                         self.__tracking_data.set_formations_data(team_formation['normalized'], current_team.get_id())
                     else:
                         self.__tracking_data.set_formations_data(team_formation['normalized_right'], current_team.get_id())
                     
                     self.__tracking_data.update(self.__tracking_data.get_data())
                     self.update_mini_map(frame, self.__tracking_data.get_data())     
-        
+            
+            # update button states:
+            if current_team.players_done() and current_team.get_id() == 0: # Team A is done, 
+                self.add_team_a_formation.setText("Saved Formation")
+                self.add_team_a_formation.disconnect()
+                self.add_team_a_formation.setDisabled(True)
+                self.add_team_a_formation.setStyleSheet("""
+                            QPushButton {
+                                    color:white;
+                                    background-color:#fff0;
+                                    border:none;
+                            }
+                        """)
+                current_team.save_formation()
+            elif current_team.players_done() and current_team.get_id() == 1:
+                self.add_team_b_formation.setText("Saved Formation")
+                self.add_team_b_formation.disconnect()
+                self.add_team_b_formation.setDisabled(True)
+                self.add_team_b_formation.setStyleSheet("""
+                            QPushButton {
+                                    color:white;
+                                    background-color:#fff;
+                                    border:none;
+                            }
+                        """)
+                current_team.save_formation()
+                
         # check if there's any data ready here.  
         elif self.__kafka_consumer is not None:
             if self.__kafka_consumer.is_data_ready():
                 tracking_data = self.__kafka_consumer.getTrackingData(as_json=True)
                 if tracking_data and  'tracks' in tracking_data:
-                    self.__tracking_data.update(tracking_data['tracks'])
+                    self.__tracking_data.update(tracking_data['tracks'], self.__init_associations)
                     self.__tracking_data.publish()
-
+                    self.__init_associations = False
                 self.update_mini_map(frame, self.__tracking_data.get_data())
-
-        
 
         height, width, channel = frame.shape
         bytes_per_line = 3 * width
         q_img = QImage(frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
         self.image_label.setPixmap(QPixmap.fromImage(q_img))
+        self.image_label.setObjectName("frame_view")
+        self.image_label.setStyleSheet("#frame_view{border:1px solid black;}")
 
         if self.__formations_manager.is_creating_formations():
             self.check_formation_complete()

@@ -1,6 +1,6 @@
 from kafka import KConsumer, KProducer
 from cfg.paths_config import __KAFKA_CONFIG__
-from user_interface import QApplication, PlayerIDAssociationApp
+from tracking_interface import QApplication, PlayerIDAssociationApp
 import sys
 import os
 from cfg.paths_config import __TEAMS_DIR__
@@ -12,7 +12,6 @@ def main()->int:
     kafka_consumer = KConsumer(__KAFKA_CONFIG__)
     kafka_consumer.subscribe('ui-data')
     kafka_consumer.start()
-
     kafka_producer = KProducer(__KAFKA_CONFIG__)
 
     if not os.path.exists((__TEAMS_DIR__ / Path(r'teams.json'))):
@@ -21,8 +20,6 @@ def main()->int:
     if not os.path.exists((__TEAMS_DIR__ / Path(r'teams.json'))):
         sys.exit(-1)
         
-    
-
     # Set up UI objects
     app = QApplication(sys.argv)
     associations_widget = PlayerIDAssociationApp()

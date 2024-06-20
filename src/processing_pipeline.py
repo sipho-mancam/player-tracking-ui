@@ -1,4 +1,4 @@
-from input import DeviceFactory, InputStreamB
+from camera.input import DeviceFactory, InputStreamB
 from input_pipeline import InputPipeline
 from space_merger import SpaceMerger, TrackBoxes
 from output_ import DetectionsOutput

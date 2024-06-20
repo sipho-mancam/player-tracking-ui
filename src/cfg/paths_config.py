@@ -8,5 +8,5 @@ __ASSETS_DIR__  = (__BASE_PATH__ / Path(r'assets')).resolve()
 __MINI_MAP_BG__ = (__ASSETS_DIR__ / Path(r'soccer_pitch_poles.png'))
 __TEAMS_DIR__ = (__BASE_PATH__ / Path(r'src\teams')).resolve()
 __TRACKING_DATA_DIR__ = (__BASE_PATH__ / Path(r'src\tracking_data')).resolve()
-
+__VIDEO_REC_OUTPUT_DIR__ = Path(r"E:\Tracking Footage")
 # print(os.path.exists(__TRACKING_DATA_DIR__), __TRACKING_DATA_DIR__.as_posix())

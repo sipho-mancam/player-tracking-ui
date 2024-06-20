@@ -37,6 +37,16 @@ class TeamManager:
         self.__team_id = team_id
         self.__formation_manager = FormationsManager()
         self.__side = side
+        self.__init_saved = False
+        self.__is_associated = False
+
+    def perform_associations(self, tracks:list[dict])->None:
+        print("Performing Associations ...")
+        
+        self.__is_associated = True
+
+    def is_associations_init(self)->bool:
+        return self.__is_associated
 
     def get_id(self)->int:
         return self.__team_id
@@ -45,6 +55,12 @@ class TeamManager:
         return self.__side
 
     def is_init(self)->bool:
+        return (self.__init_saved and self.__check_init())
+
+    def save_formation(self)->None:
+        self.__init_saved = True
+
+    def players_done(self)->bool:
         return self.__check_init()
     
     def __check_init(self)->bool:
@@ -107,6 +123,13 @@ class TeamsManager:
             return self.__team_a
         
         return self.__team_b
+    
+    def is_associations_init(self)->bool:
+        return (self.__team_a.is_associations_init() and self.__team_b.is_associations_init())
+
+    def perform_associations(self, tracks:list)->None:
+        self.__team_a.perform_associations(tracks)
+        self.__team_b.perform_associations(tracks)
     
     def update_team(self, tracking_data:list[dict])->None:
         self.__team_a.update_players(tracking_data)
