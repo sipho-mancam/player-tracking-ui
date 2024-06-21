@@ -1,51 +1,60 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtSvg import QSvgRenderer
+from PyQt5.QtGui import QPixmap, QPainter
+from PyQt5.QtXml import QDomDocument
+from PyQt5.QtCore import Qt
+from src.cfg.paths_config import __ASSETS_DIR__
 
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+class SvgManipulator(QWidget):
+    def __init__(self, jersey_number, color, parent=None):
+        super().__init__(parent)
+        self.svg_path = (__ASSETS_DIR__ / 'jersey.svg').resolve().as_posix()
 
-        self.setWindowTitle("Tabbed Interface Example")
-        self.setGeometry(100, 100, 600, 400)
+        # Load SVG content into QDomDocument
+        self.dom_document = QDomDocument()
+        with open(self.svg_path, 'r') as f:
+            self.dom_document.setContent(f.read())
+        # Manipulate the SVG DOM
+        self.set_color(f"{color}")
+        self.set_jersey_number(f"{jersey_number}")
+        # Render the manipulated SVG
+        self.renderer = QSvgRenderer(self.dom_document.toByteArray())
+        # Setup UI
+        self.init_ui()
 
-        # Create the QTabWidget
-        self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+    def set_color(self, color:str)->None:
+        elems = self.dom_document.elementsByTagName('polygon')
+        for i in range(elems.count()):
+            elem = elems.item(i).toElement()
+            elem.setAttribute('fill', color)
+    
+    def set_jersey_number(self, number:int|str)->None:
+        elements = self.dom_document.elementsByTagName("text")
+        for i in range(elements.count()):
+            element = elements.item(i).toElement()
+            element.setAttribute("fill", "white")
+            element.firstChild().setNodeValue(f"{number}")
+            
 
-        # Create tabs
-        self.tab1 = QWidget()
-        self.tab2 = QWidget()
-        self.tab3 = QWidget()
-
-        # Add tabs to the QTabWidget
-        self.tabs.addTab(self.tab1, "Tab 1")
-        self.tabs.addTab(self.tab2, "Tab 2")
-        self.tabs.addTab(self.tab3, "Tab 3")
-
-        # Add content to each tab
-        self.create_tab_content()
-
-    def create_tab_content(self):
-        # Tab 1 content
-        layout1 = QVBoxLayout()
-        label1 = QLabel("This is the content of Tab 1")
-        layout1.addWidget(label1)
-        self.tab1.setLayout(layout1)
-
-        # Tab 2 content
-        layout2 = QVBoxLayout()
-        label2 = QLabel("This is the content of Tab 2")
-        layout2.addWidget(label2)
-        self.tab2.setLayout(layout2)
-
-        # Tab 3 content
-        layout3 = QVBoxLayout()
-        label3 = QLabel("This is the content of Tab 3")
-        layout3.addWidget(label3)
-        self.tab3.setLayout(layout3)
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        # Create a QLabel to display the SVG
+        self.label = QLabel()
+        layout.addWidget(self.label)
+        # Render the SVG to a QPixmap and display it
+        pixmap = QPixmap(400, 400)  # Specify the desired size
+        pixmap.fill(Qt.transparent)  # Ensure the background is transparent
+        painter = QPainter(pixmap)
+        self.renderer.render(painter)
+        painter.end()
+        self.label.setPixmap(pixmap)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow()
+
+    svg_path = r"C:\Users\sipho-mancam\Documents\Programming\python\yolov8-python\UI\assets\Jersey.svg"
+    window = SvgManipulator(14, 'red')
     window.show()
+
     sys.exit(app.exec_())

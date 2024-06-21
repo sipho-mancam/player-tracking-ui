@@ -1,10 +1,12 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QPushButton, QHBoxLayout,QVBoxLayout, QWidget, QTabWidget, QStatusBar, QMenuBar, QAction
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
 from camera.controller import CamerasManager
 from tracking_interface import PlayerIDAssociationApp
-
+from team_information_view.widgets import MatchViewWidget
+from cfg.paths_config import __ASSETS_DIR__
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -25,10 +27,10 @@ class MainWindow(QMainWindow):
         self.__track_tab = QWidget()
 
         self.__camera_docked_widgets = [
-                CameraWidget("Camera 1", self)
-                ,CameraWidget("Camera 2", self)
-                ,CameraWidget("Camera 3", self)
-        ]
+                CameraWidget("Camera 1", self),
+                CameraWidget("Camera 2", self),
+                CameraWidget("Camera 3", self)
+            ]
         # Add pages to the tabes
         self.__tabs.addTab(self.__cameras_tab, "Cameras")
         self.__tabs.addTab(self.__track_tab, "Track")
@@ -85,12 +87,47 @@ class MainWindow(QMainWindow):
         self.__cameras_tab.setLayout(qHorizantal_layout)
 
     def create_track_page(self)->None:
-        self.t_layout = QHBoxLayout()
-        self.open_button = QPushButton("Start Tracking" ,self)
-        self.open_button.setFixedWidth(200)
-        self.open_button.setFixedHeight(200)
+        self.t_layout = QVBoxLayout()
+        self.__buttons_layout = QHBoxLayout()
+        self.open_button = QPushButton(" Start Tracking")
+
+        self.__load_team_a = QPushButton('Load Beam A')
+        self.__load_team_b = QPushButton('Load Team B')
+    
+
+        ico_path = (__ASSETS_DIR__ / 'play-24.ico').resolve().as_posix()
+        bg_path = (__ASSETS_DIR__ / 'soccer_pitch_poles.png').resolve().as_posix()
+        icon = QIcon(ico_path)
+        self.open_button.setFixedSize(100, 24)
+        # self.open_button.setFixedHeight(24)
+        self.open_button.setIcon(icon)
         self.open_button.clicked.connect(self.enable_track_window)
-        self.t_layout.addWidget(self.open_button)
+
+        self.__load_team_a.setFixedSize(100, 24)
+        self.__load_team_b.setFixedSize(100, 24)
+
+        self.__buttons_layout.addWidget(self.open_button)
+        self.__buttons_layout.addWidget(self.__load_team_a, stretch=0)
+        self.__buttons_layout.addWidget(self.__load_team_b, stretch=0)
+        self.__buttons_layout.setSpacing(0)
+        self.__buttons_layout.setAlignment(Qt.AlignLeft)
+
+
+        self.__match_view_w = MatchViewWidget()
+        self.__match_view_w.setStyleSheet(
+            """
+                           #match-view{
+                            background-image:url(""" + bg_path + """); 
+                            background-repeat:no-repeat; 
+                            background-position:center;
+                            border:1px solid black;
+                           }"""
+        )
+
+
+        self.t_layout.addLayout(self.__buttons_layout)
+        self.t_layout.addWidget(self.__match_view_w)
+        
         # t_layout.addWidget(PlayerIDAssociationApp(self))
         self.__track_tab.setLayout(self.t_layout)
     
