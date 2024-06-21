@@ -145,6 +145,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_window = MainWindow()
     cameras_manager = CamerasManager(main_window.get_camera_widgets())
+    match_controller = None
     main_window.show()
     app.exec_()
     cameras_manager.stop()

@@ -1,9 +1,9 @@
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtWidgets import (QLabel, QLineEdit, QPushButton, QWidget, QApplication, 
                             QVBoxLayout, QGridLayout, QHBoxLayout, QSizePolicy, 
-                            QSpacerItem, QComboBox, QColorDialog, QMessageBox)
+                            QSpacerItem, QComboBox, QColorDialog, QMessageBox, QDialog, QDialogButtonBox)
 from PyQt5.QtSvg import (QSvgWidget, QSvgRenderer)
-from PyQt5.QtGui import QImage, QMouseEvent, QPixmap, QPainter
+from PyQt5.QtGui import QImage, QMouseEvent, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtXml import QDomDocument
 from pathlib import Path
 import sys
@@ -136,7 +136,22 @@ class PlayerItem(QWidget):
         self.__text_edit.setText(self.__player_name)
         self.__updated = True
         return super().mousePressEvent(event)
-    
+
+class PlayerStatsDialog(QDialog):
+    def __init__(self, player_stats:dict, parent=None)->None:
+        super().__init__(parent)
+        self.__layout = QVBoxLayout()
+        self.__player_info  = player_stats
+
+        for key in self.__player_info.keys():
+            player_name_view = QLabel(f"{key.upper()}:\t{self.__player_info[key]}")
+            self.__layout.addWidget(player_name_view)
+
+         # OK and Cancel buttons
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        self.button_box.accepted.connect(self.accept)
+        self.__layout.addWidget(self.button_box)
+        self.setLayout(self.__layout)
 
 class PlayerView(QWidget):
     def __init__(self, position, number, color, parent=None)->None:
@@ -155,7 +170,7 @@ class PlayerView(QWidget):
     
     def init(self)->None:
         self.__position_w.setText(f"{self.__position}")
-        self.__position_w.setFixedSize(80, 16)
+        self.__position_w.setFixedSize(100, 16)
         self.__position_w.setAlignment(Qt.AlignHCenter)
         self.__position_w.setObjectName("position-view")
         self.__position_w.setStyleSheet("#position-view{font-weight:500; color:green;}")
@@ -163,10 +178,12 @@ class PlayerView(QWidget):
         # self.__icon_w.setPixmap(self.__prepare_icon())
         # self.__icon_w.setPixmap(self.__prepare_icon())
         self.__icon_w = SvgManipulator(self.__jersey_number, self.__color)#self.__prepare_icon()
-        # self.__icon_w.setFixedSize(80, 40)
+        self.__icon_w.setObjectName("icon-view")
+        # self.__icon_w.setStyleSheet("#icon-view{border:1px solid black;}")
+        self.__icon_w.setFixedSize(100, 80)
 
         self.__number_w.setText(f"{self.__jersey_number}")
-        # self.__number_w.setFixedSize(100, 100)
+        self.__number_w.setFixedSize(100, 16)
         self.__number_w.setAlignment(Qt.AlignHCenter)
         self.__number_w.setObjectName("jersey-view")
         self.__number_w.setStyleSheet("#jersey-view{font-weight:500; color:grey;}")
@@ -180,7 +197,13 @@ class PlayerView(QWidget):
     def __prepare_icon(self)->QLabel:
         self.svg_holder = SvgManipulator(self.__jersey_number, self.__color)
         return self.svg_holder
+    
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:
+        player_stats = PlayerStatsDialog({'jersey_number':self.__jersey_number, 'Position':self.__position})
+        player_stats.show()
+        player_stats.exec_()
 
+        return super().mousePressEvent(event)
 
 class TeamLoadWidget(QWidget):
     def __init__(self, parent=None)->None:
@@ -373,16 +396,22 @@ class TeamLoadWidget(QWidget):
 class TeamViewWidget(QWidget):
     def __init__(self, color, left = True, parent=None)->None:
         super().__init__(parent)
+        self.__positions = ["GK", "LOB", "LCB", "RCB", "ROB", "LW", "CM", "DCM", "RW", "ACM", "CF"]
         self.__players = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-        self.__color = None
-        self.__formation = None
-        self.__team_name = None
+        self.__color = color
+        self.__formation = "4-4-2"
+        self.__team_name = "Kaizer Chiefs"
         self.__left_team = left
 
-        self.__players_w = [PlayerView("GK", self.__players[j], color) for j in range(11)]
+        self.__players_w = [PlayerView(self.__positions[j], self.__players[j], color) for j in range(11)]
         self.__layout = QGridLayout()
+        self.__bottom_layout = QVBoxLayout()
+        self.__main_layout = QVBoxLayout()
 
         self.init()
+        widgSize = self.sizeHint()
+        widgSize.setHeight(widgSize.height()+60)
+        self.setFixedSize(widgSize)
 
     def init(self)->None:
         if self.__left_team:
@@ -390,7 +419,11 @@ class TeamViewWidget(QWidget):
         else:
             self.arrange_right_players()
 
-        self.setLayout(self.__layout)
+        self.add_team_stats()
+
+        self.__main_layout.addLayout(self.__layout)
+        self.__main_layout.addLayout(self.__bottom_layout)
+        self.setLayout(self.__main_layout)
 
     def arrange_left_players(self)->None:
         self.__layout.addWidget(self.__players_w[0], 1, 0)
@@ -410,6 +443,40 @@ class TeamViewWidget(QWidget):
 
         self.__layout.addWidget(self.__players_w[9], 1, 0)
         self.__layout.addWidget(self.__players_w[10], 2, 0)
+
+    def add_team_stats(self)->None:
+        self.__team_name_view = QLabel(f"Name:\t{self.__team_name}")
+        self.__team_name_view.setObjectName("team-name-view")
+        self.__team_name_view.setStyleSheet("#team-name-view{border-bottom:1px solid black;}")
+
+        self.__team_formations_view = QLabel(f"Formation:\t{self.__formation}")
+        
+        self.__bottom_layout.addWidget(self.__team_name_view)
+        self.__bottom_layout.addWidget(self.__team_formations_view)
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        pen = QPen(Qt.black, 2, Qt.SolidLine)
+        painter.setPen(pen)
+        
+        brush = QColor(self.__color)
+        painter.setBrush(brush)
+
+        # Get the widget's width and height
+        widget_width = self.width()
+        widget_height = self.height()
+        
+        # Circle parameters
+        circle_radius = 20
+        circle_diameter = circle_radius * 2
+        # Calculate the position to draw the circle at the bottom center
+        x_position = (widget_width - circle_diameter) // 2
+        y_position = (widget_height - circle_diameter - 5) 
+        # Draw the circle
+        painter.drawEllipse(x_position, y_position, circle_diameter, circle_diameter)
+        
 
  
 class MatchViewWidget(QWidget):
