@@ -621,12 +621,18 @@ class MatchViewWidget(QWidget):
         if self.__match_controller is not None:
             self.__match_controller.set_team_view(True, self.__teams[0])
             self.__match_controller.set_team_view(False, self.__teams[1])
+            self.__match_controller.set_match_view_widget(self)
 
     def set_left_team(self, team_info:dict)->None:
         self.__teams[0].set_team_info(team_info)
     
     def set_right_team(self, team_info:dict)->None:
         self.__teams[1].set_team_info(team_info)
+    
+    def update_match_info(self, match_info:list)->None:
+        self.__match_info = match_info
+        self.__teams[0].set_team_info(self.__match_info[0])
+        self.__teams[1].set_team_info(self.__match_info[1])
         
     def init(self)->None:
         self.__layout.addWidget(self.__teams[0])
@@ -652,7 +658,6 @@ class MatchViewWidget(QWidget):
         
     def resizeEvent(self, event):
         # Resize the background image when the widget is resized
-        # self.background_image = QPixmap("path/to/your/image.jpg")
         self.background_image = self.background_image.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
         self.update()
         
@@ -665,12 +670,190 @@ class MatchViewWidget(QWidget):
          # Draw the background image
         painter.drawPixmap(self.rect(), self.background_image)
 
+class RoundButton(QPushButton):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setFixedSize(50, 50)
+        self.__radius = int(self.width()/2)
+        self.setObjectName("round-button")
+        self.setStyleSheet(f"""
+                            #round-button{{
+                                border-style: outset;
+                               
+                                border-radius:25;
+                                background-color: #ccc;
+                            
+                            }}
+                           #round-button:pressed{{
+                                background: #aaa; 
+                           }}
+        """)
+        self.__is_activated = False
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_start_position = event.pos()
+
+    def is_activated(self)->bool:
+        return self.__is_activated
+
+    def mouseMoveEvent(self, event):
+        if self.dragging:
+            self.move(self.mapToParent(event.pos() - self.drag_start_position))
+            self.__is_activated = True
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            print(self.x(), self.y())
+
+class FormationManagerView(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Formations Manager")
+
+        self.__main_layout = QVBoxLayout()
+        self.__top_buttons_layout = QHBoxLayout()
+        self.__middle_layout = QHBoxLayout()
+        self.__position_widgets_grid = QGridLayout() 
+
+        self.__create_formation_button = QPushButton("Create Formation")
+        self.__modify_formation_button = QPushButton("Modify Formation")
+        self.__save_button = QPushButton("Save")
+
+        self.__formation_name = QLabel("Formation Name")
+        self.__formation_name_edit = QLineEdit()
+        self.__half_pitch = QLabel()
+
+        self.__positions = ["GK", "LOB", "LCB", "RCB", "ROB", "LW", "CM", "DCM", "RW", "ACM", "CF"]
+        self.__position_buttons = []
+        self.__name = ""
+        self.__data = {}
+        self.__whats_missing = ""
+        
+        self.init()
+        self.setFixedSize(self.sizeHint())
+
+    def load_bg(self)->None:
+        path = (__ASSETS_DIR__ / 'soccer_pitch_poles_half.png')
+        pix_map = QPixmap(path.resolve().as_posix())
+        pix_map = pix_map.scaled(600, 850)
+        self.__half_pitch.setPixmap(pix_map)
+
+    def save_formation(self)->None:
+        #Check if the formation name has been set
+        # Check if all the players have been placed
+        # Compute the normalized position for each player
+        # save all of this in a dictionery
+        # pass it to the controller and close.
+        clear_to_save = True
+        if len(self.__name) == 0:
+            clear_to_save = False
+            self.__whats_missing = "Please give the formation a name"
+
+        if clear_to_save:
+            for player in self.__position_buttons:
+                if not player.is_activated():
+                    clear_to_save = False
+                    self.__whats_missing = "Please make sure all the positions are added to the formation"
+                    break
+        
+        if clear_to_save:
+            self.__data['name'] = self.__name
+            self.__data['positions'] = []
+            for position in self.__position_buttons:
+                self.__data['positions'].append({'position':position.text(), 
+                                                 'coordinates':self.__normalize_position(position.x(), position.y())})
+            
+            pprint.pprint(self.__data)
+            self.close()
+        else:
+            # Open and Error Dialog
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Critical)
+            msgBox.setWindowTitle("Error")
+            # msgBox.setTitle("Error")
+            msgBox.setText(self.__whats_missing)
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.exec_() 
+
+    def __normalize_position(self, x, y)->tuple:
+        width = self.__half_pitch.width()
+        height = self.__half_pitch.height() 
+        x_norm = (x/(width*2))
+        y_norm=  (y/(height))
+        return (x_norm, y_norm)
+
+    def create_formation(self)->None:
+        self.__formation_name.hide()
+        self.__formation_name_edit.setText(self.__name)
+        self.__formation_name_edit.show()
+
+    def add_positions(self)->None:
+        for idx, pos in enumerate(self.__positions):
+            row, col  = divmod(idx, 3)
+            btn = RoundButton(pos)
+            self.__position_buttons.append(btn)
+            self.__position_widgets_grid.addWidget(btn, row, col)
+        self.__position_widgets_grid.setAlignment(Qt.AlignTop)
+
+    def update_formation_name(self)->None:
+        text = self.__formation_name_edit.text()
+        if not text.isspace() and len(text) > 0:
+            self.__name = text
+            self.__formation_name_edit.hide()
+            self.__formation_name.setText(f"{self.__name}")
+            self.__formation_name.show()
+
+    def init(self)->None:
+        self.__create_formation_button.setFixedSize(100, 24)
+        self.__create_formation_button.clicked.connect(self.create_formation)
+
+        self.__modify_formation_button.setFixedSize(100, 24)
+
+        self.__save_button.setFixedSize(100, 24)
+        self.__save_button.clicked.connect(self.save_formation)
+
+        self.__formation_name.setFixedSize(300, 24)
+        self.__formation_name.setObjectName("formation-name")
+        self.__formation_name.setStyleSheet("""#formation-name{
+                                            border:1px solid black;
+                                            font-size:14px;
+                                            font-weight:500;                                        
+                                            }""")
+        self.__formation_name.setAlignment(Qt.AlignHCenter)
+
+        self.__formation_name_edit.setPlaceholderText("Formation eg. 4-4-2")
+        self.__formation_name_edit.setFixedSize(300, 24)
+        self.__formation_name_edit.setAlignment(Qt.AlignCenter)
+        self.__formation_name_edit.hide()
+        self.__formation_name_edit.returnPressed.connect(self.update_formation_name)
+
+        self.__top_buttons_layout.addWidget(self.__create_formation_button)
+        self.__top_buttons_layout.addWidget(self.__modify_formation_button)
+        self.__top_buttons_layout.addWidget(self.__formation_name)
+        self.__top_buttons_layout.addWidget(self.__formation_name_edit)
+        self.__top_buttons_layout.addWidget(self.__save_button, alignment=Qt.AlignLeft)
+        self.__top_buttons_layout.setAlignment(Qt.AlignLeft)
+
+        self.load_bg()
+        self.add_positions()
+
+        self.__middle_layout.addWidget(self.__half_pitch)
+        self.__middle_layout.addLayout(self.__position_widgets_grid)
+
+        self.__main_layout.addLayout(self.__top_buttons_layout)
+        self.__main_layout.addLayout(self.__middle_layout)
+        self.__main_layout.setAlignment(Qt.AlignTop)
+
+        self.setLayout(self.__main_layout)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    player = TeamLoadWidget()
+    player = FormationManagerView()
     player.show()
 
     app.exec_()

@@ -38,22 +38,24 @@ class MainWindow(QMainWindow):
         self.__tabs.addTab(self.__track_tab, "Track")
         self.__tabs.addTab(self.__calib_tab, "Calibrate")
         self.__tabs.addTab(self.__config_tab, "Config")
+
+        #Tracking Stuff
+        self.load_view_a = None
+        self.load_view_b = None
+        self.__swap_teams = None
+        self.__match_controller = None
         
         self.init_pages()
         self.init_menue()
         self.setCentralWidget(self.__tabs)
         self.setStatusBar(self.__status_bar)
 
-        #Tracking Stuff
-        self.load_view_a = None
-        self.load_view_b = None
-
-        self.__match_controller = None
-    
+      
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
         if self.__match_controller is not None:
             self.__match_view_w.set_match_controller(self.__match_controller)
+            self.__match_controller.set_start_button(self.open_button)
     
 
     def init_menue(self)->None:
@@ -120,6 +122,10 @@ class MainWindow(QMainWindow):
         else:
             self.load_view_b.show()
         
+    def swap_teams(self)->None:
+        # Send an instruction to the controller to swap teams
+        self.__match_controller.upload_message(0x00)
+        
     def create_track_page(self)->None:
         self.t_layout = QVBoxLayout()
         self.__buttons_layout = QHBoxLayout()
@@ -127,7 +133,7 @@ class MainWindow(QMainWindow):
 
         self.__load_team_a = QPushButton('Load Team A')
         self.__load_team_b = QPushButton('Load Team B')
-    
+        self.__swap_teams  = QPushButton("Swap Teams")
 
         ico_path = (__ASSETS_DIR__ / 'play-24.ico').resolve().as_posix()
         bg_path = (__ASSETS_DIR__ / 'soccer_pitch_poles.png').resolve().as_posix()
@@ -136,6 +142,8 @@ class MainWindow(QMainWindow):
         # self.open_button.setFixedHeight(24)
         self.open_button.setIcon(icon)
         self.open_button.clicked.connect(self.enable_track_window)
+        self.open_button.setDisabled(True)
+
 
         self.__load_team_a.setFixedSize(100, 24)
         self.__load_team_a.clicked.connect(self.load_team_a)
@@ -143,9 +151,13 @@ class MainWindow(QMainWindow):
         self.__load_team_b.setFixedSize(100, 24)
         self.__load_team_b.clicked.connect(self.load_team_b)
 
+        self.__swap_teams.setFixedSize(100, 24)
+        self.__swap_teams.clicked.connect(self.swap_teams)
+
         self.__buttons_layout.addWidget(self.open_button)
         self.__buttons_layout.addWidget(self.__load_team_a, stretch=0)
         self.__buttons_layout.addWidget(self.__load_team_b, stretch=0)
+        self.__buttons_layout.addWidget(self.__swap_teams, stretch=0)
         self.__buttons_layout.setSpacing(0)
         self.__buttons_layout.setAlignment(Qt.AlignLeft)
 
@@ -164,7 +176,7 @@ class MainWindow(QMainWindow):
         self.__track_tab.setLayout(self.t_layout)
     
     def enable_track_window(self)->None:
-        self.__tracking_window = PlayerIDAssociationApp(self.parentWidget())
+        self.__tracking_window = PlayerIDAssociationApp(self.__match_controller, self.parentWidget())
         self.__tracking_window.show()
         self.open_button.setDisabled(True)
     

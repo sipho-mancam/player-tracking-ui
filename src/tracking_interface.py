@@ -116,6 +116,17 @@ class ButtonWithID(QPushButton):
     def get_button_id(self)->int:
         return self.__id
     
+    def get_position(self)->str:
+        return self.__id.get('position')
+
+    def set_jersey_number(self, id)->None:
+        self.__id['jersey_number'] = id
+        self.__id['id'] = id
+
+    def set_id(self, id)->None:
+        self.__id['id'] = id
+        self.__id['jersery_number'] = id
+        self.setText(f"{self.__id['position']} -  {id}")
         
 class TrackingData:
     def __init__(self)->None:
@@ -341,7 +352,7 @@ class SaveFormation(QDialog):
 
 
 class PlayerIDAssociationApp(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, match_controller, parent=None):
         super().__init__(parent)
         self.cap = None
         self.timer = QTimer()
@@ -353,8 +364,20 @@ class PlayerIDAssociationApp(QWidget):
         self.__team_sheets = None
         self.__formations_manager = FormationsManager()
         self.__init_associations = False
+
+        self.__match_controller = match_controller
+        self.__match_data = None
+          # Main layout
+        self.main_layout = QVBoxLayout()
+        # Left grid layout
+        self.top_bar = QHBoxLayout()
+        self.middle_layout = QHBoxLayout()
+        self.bottom_layout = QHBoxLayout()
+        self.__teams_buttons = []
+        self.__teams_widgets = []
         self.read_team_sheets()
         self.initUI()
+        self.__match_controller.set_player_tracking_interface(self)
 
     def setKafkaConsumer(self, kafka_consumer:KConsumer)->None:
         self.__kafka_consumer = kafka_consumer
@@ -372,75 +395,34 @@ class PlayerIDAssociationApp(QWidget):
         # if not self.__init_associations
         self.__init_associations = True
 
-    def initUI(self):
-        self.setWindowTitle('Player Tracking Interface')
-        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)  # Disable maximize button
-        
-      
-        # Main layout
-        main_layout = QVBoxLayout()
-        # Left grid layout
-        top_bar = QHBoxLayout()
-        middle_layout = QHBoxLayout()
-        bottom_layout = QHBoxLayout()
+    def init_team(self, left:bool)->None:
+        self.__teams_widgets.append({})
+        team_data = self.__match_controller.get_team_data(left)
+        players = team_data.get('players')
+        current_index = 0 if left else 1
 
         left_vertical_layout = QVBoxLayout()
-        right_vertical_layout = QVBoxLayout()
-
-        connect_button = StyledButton('Connect Players', self)
-        self.start_associations = StyledButton('Start Associations', self)
-        highlight_button = StyledButton('Start Highlighting', self)
-
-        connect_button.clicked.connect(connect_button.toggle_color)
-        self.start_associations.clicked.connect(self.start_associations.toggle_color)
-        self.start_associations.clicked.connect(self.init_associations)
-
-        highlight_button.clicked.connect(highlight_button.toggle_color)
-
-        connect_button.clicked.connect(self.__tracking_data.toggle_connections)
-        highlight_button.clicked.connect(self.__tracking_data.toggle_highlight)
-
-        top_bar.addWidget(self.start_associations)
-        top_bar.addWidget(connect_button)
-        top_bar.addWidget(highlight_button)
-
-        top_bar.setAlignment(Qt.AlignLeft)
-        
-        # Remove all margins 
-        top_bar.setContentsMargins(0, 0, 0, 0)
-        middle_layout.setContentsMargins(0,0,0,0)
-        bottom_layout.setContentsMargins(0,0,0,0)
-
         left_grid = QGridLayout()
         team_a = self.__team_sheets.get('Team A')
         self.teams_manager = TeamsManager(self.__team_sheets)
         self.__tracking_data.set_teams_manager(self.teams_manager)
 
-        self.left_buttons = [ButtonWithID(f'Player {team}', {'id':team, 'team':0}, self) for i, team in zip(range(11), team_a)]
-        for i, btn in enumerate(self.left_buttons):
+        self.buttons = [ButtonWithID(f'{player.get("position")}  - {player.get("jersey_number")}', 
+                                     {'id':int(player.get("jersey_number")), 'team':0 if left else 1, 'position':player.get("position")}, 
+                                    self) for  player in players]
+        
+        self.__teams_buttons.insert(current_index, self.buttons)
+
+        self.__teams_widgets[current_index]['buttons'] = self.buttons
+
+        for i, btn in enumerate(self.buttons):
             btn.registerCallback(self.__tracking_data.assign_to_player_to_id)
             btn.clicked.connect(btn.button_clicked)
             row, col = divmod(i, 3)
             left_grid.addWidget(btn, row, col)
         
-        self.add_team_a_formation = ButtonWithID('Add Formation', {'id':-1, 'team':'A'}, self)
-        self.add_team_a_formation.setStyleSheet("""
-                                    QPushButton {
-                                           border-style:outset;
-                                           border-radius: 20px;
-                                           background-color:#f00;
-                                           color:#fff;
-                                    }
-                                    QPushButton:pressed {
-                                            background: #aaa;
-                                    }
-                                           """)
-        
-        self.add_team_a_formation.clicked.connect(self.show_add_formation_dialog)
-
-        left_grid.addWidget(self.add_team_a_formation)
-
-        team_a_text = QLabel('Team A', self)
+        team_a_text = QLabel(team_data.get("name"), self)
+        self.__teams_widgets[current_index]['team_name'] = team_a_text
 
         
         team_a_text.setStyleSheet(""" 
@@ -452,44 +434,51 @@ class PlayerIDAssociationApp(QWidget):
         left_grid.addWidget(team_a_text, 4, 0, 1, 3)
         left_vertical_layout.addLayout(left_grid)
         left_vertical_layout.setAlignment(Qt.AlignTop)
-    
-        # Right grid layout
-        right_grid = QGridLayout()
-        team_b = self.__team_sheets.get('Team B')
-        self.right_buttons = [ButtonWithID(f'Player {team}',{'id':team, 'team':1}, self) for i, team in zip(range(11), team_b)]
-        for i, btn in enumerate(self.right_buttons):
-            btn.registerCallback(self.__tracking_data.assign_to_player_to_id)
-            btn.clicked.connect(btn.button_clicked)
-            row, col = divmod(i, 3)
-            right_grid.addWidget(btn, row, col)
+        self.bottom_layout.addLayout(left_vertical_layout)
 
-        self.add_team_b_formation = ButtonWithID('Add Formation', {'id':-1, 'team':'B'}, self)
-        self.add_team_b_formation.setStyleSheet("""
-                                    QPushButton {
-                                           border-style:outset;
-                                           border-radius: 20px;
-                                           background-color:#f00;
-                                           color:#fff;
-                                    }
-                                    QPushButton:pressed {
-                                            background: #aaa;
-                                    }
-                                           """)
-        
-        self.add_team_b_formation.clicked.connect(self.show_add_formation_dialog)
+    def update_match_info(self, match_info:list)->None:
+        self.__match_data = match_info
 
-        right_grid.addWidget(self.add_team_b_formation)
+        for idx, team in enumerate(match_info):
+            self.__teams_widgets[idx]['team_name'].setText(team.get('name'))
+            for player in team['players']:
+                # find the button associated with this player
+                id = player.get('jersey_number')
+                for button in self.__teams_widgets[idx]['buttons']:
+                    if button.get_position() == player.get('position'):
+                        button.set_id(id)
     
-        team_b_text = QLabel('Team B', self)
-        team_b_text.setStyleSheet(""" 
-                                QLabel {
-                                  font-weight:500;
-                                  font-size:20px;
-                                }
-                                """)
-        right_grid.addWidget(team_b_text, 4, 0, 1, 3)
-        right_vertical_layout.addLayout(right_grid)
-        right_vertical_layout.setAlignment(Qt.AlignTop)
+    def init_top_bar(self)->None:
+        self.connect_button = StyledButton('Connect Players', self)
+        self.connect_button.clicked.connect(self.connect_button.toggle_color)
+        self.connect_button.clicked.connect(self.__tracking_data.toggle_connections)
+
+        self.start_associations = StyledButton('Start Associations', self)        
+        self.start_associations.clicked.connect(self.start_associations.toggle_color)
+        self.start_associations.clicked.connect(self.init_associations)
+
+        self.highlight_button = StyledButton('Start Highlighting', self)
+        self.highlight_button.clicked.connect(self.highlight_button.toggle_color)
+        self.highlight_button.clicked.connect(self.__tracking_data.toggle_highlight)
+
+        self.top_bar.addWidget(self.start_associations)
+        self.top_bar.addWidget(self.connect_button)
+        self.top_bar.addWidget(self.highlight_button)
+        self.top_bar.setAlignment(Qt.AlignLeft)
+
+    def initUI(self):
+        self.setWindowTitle('Player Tracking Interface')
+        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)        
+         
+        self.top_bar.setContentsMargins(0, 0, 0, 0)
+        self.middle_layout.setContentsMargins(0,0,0,0)
+        self.bottom_layout.setContentsMargins(0,0,0,0)
+
+        self.init_top_bar()
+        # Initialize team A (Left Team)
+        self.init_team(True)
+        #Initialize Team B (Right Team)
+        self.init_team(False)
 
         # Image view
         self.image_label = ClickableLabel(self)
@@ -499,16 +488,13 @@ class PlayerIDAssociationApp(QWidget):
         image_layout = QVBoxLayout()
         image_layout.addWidget(self.image_label)
         image_layout.setContentsMargins(0,0,0,0)
-
-        middle_layout.addLayout(image_layout)
-        bottom_layout.addLayout(left_vertical_layout)
-        bottom_layout.addLayout(right_vertical_layout)
+        self.middle_layout.addLayout(image_layout)
 
         # Adding layouts to main layout
-        main_layout.addLayout(top_bar)
-        main_layout.addLayout(middle_layout)
-        main_layout.addLayout(bottom_layout)
-        self.setLayout(main_layout)
+        self.main_layout.addLayout(self.top_bar)
+        self.main_layout.addLayout(self.middle_layout)
+        self.main_layout.addLayout(self.bottom_layout)
+        self.setLayout(self.main_layout)
         self.resize(800, 600)
     
         # load the mini_map bg
@@ -519,7 +505,6 @@ class PlayerIDAssociationApp(QWidget):
         self.image_label.setMargin(0)
         self.start_updates_timer()
         self.show()
-
         self.setFixedSize(self.size())
 
     def show_add_formation_dialog(self)->None:
@@ -636,66 +621,22 @@ class PlayerIDAssociationApp(QWidget):
                     clone_bg = cv2.putText(clone_bg, f"{det['player-id']}", (x_scaled, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, text_color, 2)
                 else:
                     clone_bg = cv2.putText(clone_bg, f"??", (x_scaled, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,0), 2)
-                # if det.get('track_id') is not None:
-                #     clone_bg = cv.putText(clone_bg, f"{det['track_id']}", (x_scaled-15, y_scaled+5), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,0), 2)
         return clone_bg
 
     def update(self):
         frame = self.__frame.copy()
         if frame is None:
             return
-
-        current_team_manager = self.__tracking_data.get_teams_manager()
-        if not current_team_manager.is_init():
-            current_team = current_team_manager.get_current_team_initializing()
-            if current_team.get_formations_manager().is_creating_formations():
-                self.update_mini_map(frame, None) 
-            else: # you have selected some formation, now you wanna load it.
-                team_formation = current_team.get_formations_manager().get_formation()
-                if len(team_formation) > 0:
-                    if current_team.get_side() == 0:
-                        self.__tracking_data.set_formations_data(team_formation['normalized'], current_team.get_id())
-                    else:
-                        self.__tracking_data.set_formations_data(team_formation['normalized_right'], current_team.get_id())
-                    
-                    self.__tracking_data.update(self.__tracking_data.get_data())
-                    self.update_mini_map(frame, self.__tracking_data.get_data())     
-            
-            # update button states:
-            if current_team.players_done() and current_team.get_id() == 0: # Team A is done, 
-                self.add_team_a_formation.setText("Saved Formation")
-                self.add_team_a_formation.disconnect()
-                self.add_team_a_formation.setDisabled(True)
-                self.add_team_a_formation.setStyleSheet("""
-                            QPushButton {
-                                    color:white;
-                                    background-color:#fff0;
-                                    border:none;
-                            }
-                        """)
-                current_team.save_formation()
-            elif current_team.players_done() and current_team.get_id() == 1:
-                self.add_team_b_formation.setText("Saved Formation")
-                self.add_team_b_formation.disconnect()
-                self.add_team_b_formation.setDisabled(True)
-                self.add_team_b_formation.setStyleSheet("""
-                            QPushButton {
-                                    color:white;
-                                    background-color:#fff;
-                                    border:none;
-                            }
-                        """)
-                current_team.save_formation()
-                
+        
         # check if there's any data ready here.  
-        elif self.__kafka_consumer is not None:
-            if self.__kafka_consumer.is_data_ready():
-                tracking_data = self.__kafka_consumer.getTrackingData(as_json=True)
-                if tracking_data and  'tracks' in tracking_data:
-                    self.__tracking_data.update(tracking_data['tracks'], self.__init_associations)
-                    self.__tracking_data.publish()
-                    self.__init_associations = False
-                self.update_mini_map(frame, self.__tracking_data.get_data())
+        self.__kafka_consumer is not None
+        if self.__kafka_consumer.is_data_ready():
+            tracking_data = self.__kafka_consumer.getTrackingData(as_json=True)
+            if tracking_data and  'tracks' in tracking_data:
+                self.__tracking_data.update(tracking_data['tracks'], self.__init_associations)
+                self.__tracking_data.publish()
+                self.__init_associations = False
+            self.update_mini_map(frame, self.__tracking_data.get_data())
 
         height, width, channel = frame.shape
         bytes_per_line = 3 * width
@@ -704,9 +645,6 @@ class PlayerIDAssociationApp(QWidget):
         self.image_label.setObjectName("frame_view")
         self.image_label.setStyleSheet("#frame_view{border:1px solid black;}")
 
-        if self.__formations_manager.is_creating_formations():
-            self.check_formation_complete()
-
     def closeEvent(self, event):
         if self.cap is not None:
             self.cap.release()
@@ -714,8 +652,8 @@ class PlayerIDAssociationApp(QWidget):
 
 
 
-# if __name__ == '__main__':
-#     app = QApplication(sys.argv)
-#     ex = PlayerIDAssociationApp()
-#     ex.show()
-#     sys.exit(app.exec_())
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    ex = PlayerIDAssociationApp()
+    ex.show()
+    sys.exit(app.exec_())
