@@ -697,6 +697,9 @@ class RoundButton(QPushButton):
 
     def is_activated(self)->bool:
         return self.__is_activated
+    
+    def clear_activation(self):
+        self.__is_activated = False
 
     def mouseMoveEvent(self, event):
         if self.dragging:
@@ -765,9 +768,10 @@ class FormationManagerView(QWidget):
             for position in self.__position_buttons:
                 self.__data['positions'].append({'position':position.text(), 
                                                  'coordinates':self.__normalize_position(position.x(), position.y())})
+                position.clear_activation()
             
             pprint.pprint(self.__data)
-            self.close()
+            self.hide()
         else:
             # Open and Error Dialog
             msgBox = QMessageBox()

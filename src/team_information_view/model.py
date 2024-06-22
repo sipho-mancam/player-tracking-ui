@@ -1,7 +1,7 @@
 from pathlib import Path
 import json
 
-from ..cfg.paths_config import __TEAMS_DIR__
+from cfg.paths_config import __TEAMS_DIR__
 
 
 class FormationModel:
@@ -66,7 +66,7 @@ class FormationsModel:
         self.__formations.append(FormationModel(formation))
         self.__formations_list.append(formation.get('name'))
     
-    
+
 
 class PlayerInfoModel:
     def __init__(self, number, position)->None:

@@ -5,7 +5,7 @@ from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
 from camera.controller import CamerasManager
 from tracking_interface import PlayerIDAssociationApp
-from team_information_view.widgets import MatchViewWidget, TeamLoadWidget
+from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, FormationManagerView
 from team_information_view.controller import MatchController
 from cfg.paths_config import __ASSETS_DIR__
 
@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
         self.load_view_b = None
         self.__swap_teams = None
         self.__match_controller = None
+        self.__formations_view = None
         
         self.init_pages()
         self.init_menue()
@@ -70,6 +71,8 @@ class MainWindow(QMainWindow):
 
         team_info_menu = self.menuBar.addMenu('&Team')
         formations = QAction('&Formations', self)
+        formations.triggered.connect(self.open_formation_manager)
+        
         team_info_menu.addAction(formations)
         # Add actions to the File menu
         exit_action = QAction('&Exit', self)
@@ -97,6 +100,15 @@ class MainWindow(QMainWindow):
         self.create_cameras_page()
         # Other pages here...
         self.create_track_page()
+
+    def open_formation_manager(self)->None:
+        if self.__formations_view is None:
+            self.__formations_view = FormationManagerView(self.parentWidget())
+            self.__formations_view.show()
+        else:
+            self.__formations_view.show()
+        
+
 
     def create_cameras_page(self)->None:
         # Create first dock widget
