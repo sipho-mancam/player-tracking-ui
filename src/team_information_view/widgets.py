@@ -22,6 +22,7 @@ class SvgManipulator(QWidget):
         with open(self.svg_path, 'r') as f:
             self.dom_document.setContent(f.read())
         # Manipulate the SVG DOM
+        
         self.set_color(f"{color}")
         self.set_jersey_number(f"{jersey_number}")
         # Render the manipulated SVG
@@ -64,6 +65,17 @@ class SvgManipulator(QWidget):
 
                     }
             """)
+        
+    def rerender(self)->None:
+        del self.renderer
+        self.renderer = QSvgRenderer(self.dom_document.toByteArray())
+        # Render the SVG to a QPixmap and display it
+        pixmap = QPixmap(80, 40)  # Specify the desired size
+        pixmap.fill(Qt.transparent)  # Ensure the background is transparent
+        painter = QPainter(pixmap)
+        self.renderer.render(painter)
+        painter.end()
+        self.label.setPixmap(pixmap)
     
     def paintEvent(self, paint_event)->None:
         style_op = QStyleOption()
@@ -81,6 +93,7 @@ class PlayerItem(QWidget):
         self.__text = QLabel()
         self.__position_widget = QLabel()
         self.__text_edit = QLineEdit()
+        self.__color = 'blue'
 
         self.__player_name = "90"
         self.__jersey_number = 90
@@ -90,39 +103,39 @@ class PlayerItem(QWidget):
         self.init()
 
     def get_player_info(self)->dict:
-        return {'player-name':self.__player_name, 'jersey':self.__jersey_number, 'position':self.__player_position}
+        return {'player-name':self.__player_name, 'jersey_number':self.__jersey_number, 'position':self.__player_position}
     
     def is_updated(self)->None:
         return self.__updated
+    
+    def set_team_color(self, color:str)->None:
+        self.__color = color
+        self.__icon.set_color(self.__color)
+        self.__icon.rerender()
+        
 
     def init(self)->None:
         self.__position_widget.setText(f"{self.__player_position}")
         self.__position_widget.setObjectName("player-position")
         self.__position_widget.setStyleSheet("#player-position{font-weight:500;color:green;}")
-        self.__position_widget.setFixedSize(80,16)
+        self.__position_widget.setFixedSize(100,16)
         self.__position_widget.setAlignment(Qt.AlignHCenter)
 
-        path = (__ASSETS_DIR__ / Path('jersey_1.png')).resolve().as_posix()
-        icon = QImage(path)
-        icon = icon.scaled(80, 40)
-        self.__icon.setFixedSize(80, 45)
-        self.__icon.setPixmap(QPixmap.fromImage(icon))
-        self.__icon.setObjectName('player-jersey-icon')
-        # self.__icon.
-        # self.__icon.setStyleSheet("#player-jersey-icon{border:1px solid black; padding: 0px;}")
-        # self.__icon.setAlignment(Qt.AlignHCenter)
+        self.__icon = SvgManipulator(self.__jersey_number, self.__color)
+        self.__icon.setFixedSize(100, 60)
+        self.__icon.setStyleSheet("#player-jersey-icon{border:none; padding: 0px;}")
       
         self.__text.setText(f"{self.__player_name}")
         self.__text.setObjectName('player-name')
         self.__text.setStyleSheet("#player-name{font-weight:500;color:grey;}")
         self.__text.setFixedHeight(16)
-        self.__text.setFixedWidth(80)
+        self.__text.setFixedWidth(100)
         self.__text.setAlignment(Qt.AlignHCenter)
 
         self.__text_edit.hide()
         self.__text_edit.setFixedHeight(16)
         self.__text_edit.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.__text_edit.setFixedWidth(80)
+        self.__text_edit.setFixedWidth(100)
         self.__text_edit.setPlaceholderText("Player Name")
         self.__text_edit.returnPressed.connect(self.grab_player_name)
         self.__text_edit.setAlignment(Qt.AlignCenter)
@@ -139,6 +152,9 @@ class PlayerItem(QWidget):
         text = self.__text_edit.text()
         if not text.isspace() and len(text) > 0:
             self.__player_name = text
+            self.__jersey_number = text
+            self.__icon.set_jersey_number(self.__player_name)
+            self.__icon.rerender()
             self.__text.setText(self.__player_name)
             self.__text_edit.hide()
             self.__text_edit.setText("")
@@ -149,6 +165,7 @@ class PlayerItem(QWidget):
         self.__text.hide()
         self.__text_edit.show()
         self.__text_edit.setText(self.__player_name)
+        self.__text_edit.setFocus()
         self.__updated = True
         return super().mousePressEvent(event)
 
@@ -157,6 +174,7 @@ class PlayerStatsDialog(QDialog):
         super().__init__(parent)
         self.__layout = QVBoxLayout()
         self.__player_info  = player_stats
+        self.setWindowTitle("Player Stats")
 
         for key in self.__player_info.keys():
             player_name_view = QLabel(f"{key.upper()}:\t{self.__player_info[key]}")
@@ -188,6 +206,25 @@ class PlayerView(QWidget):
                                 background-color: rgba(255, 255, 255, 100);
                     }""")
         self.init()
+
+    def get_position(self):
+        return self.__position
+
+    def set_position(self, position)->None:
+        self.__position = position
+        self.__position_w.setText(f"{self.__position}")
+    
+    def set_jersey_number(self, number)->None:
+        self.__jersey_number = number
+        self.__number_w.setText(f"{self.__jersey_number}")
+        self.__icon_w.set_jersey_number(self.__jersey_number)
+        self.__icon_w.rerender()
+    
+    def set_color(self, color:str)->None:
+        self.__color = color
+        self.__icon_w.set_color(self.__color)
+        self.__icon_w.rerender()
+
     
     def init(self)->None:
         self.__position_w.setText(f"{self.__position}")
@@ -249,8 +286,9 @@ class PlayerView(QWidget):
        
 
 class TeamLoadWidget(QWidget):
-    def __init__(self, parent=None)->None:
+    def __init__(self, left_team=True, parent=None)->None:
         super().__init__(parent)
+        self.setWindowTitle("Load Team Information")
         self.__main_layout = QVBoxLayout(self)
         self.__team_name_layout = QHBoxLayout()
         self.__layout = QGridLayout()
@@ -267,32 +305,37 @@ class TeamLoadWidget(QWidget):
         self.__team_color_button = QPushButton("Select Team Color")
         self.__bottom_layout = QHBoxLayout()
        
-        self.__change_team_name = QPushButton("Change Team")
+        self.__change_team_name = QPushButton("Change Name")
 
         self.__positions = ["GK", "LOB", "LCB", "RCB", "ROB", "LW", "CM", "DCM", "RW", "ACM", "CF"]
         self.__team_list = [PlayerItem(self.__positions[i]) for i in range(11)]
         self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
-        self.__left_team = True
+        self.__left_team = left_team
         self.__team_name = "Kaizer Chiefs"
         self.__team_formation = ""
         self.__team_color = ""
         self.__whats_missing = ""
         self.__data = {}
+        self.__match_controller = None
 
         self.setObjectName("team-show")
         self.setLayout(self.__main_layout)
         self.init()
+        self.setFixedSize(self.sizeHint())
+
+    def set_match_controller(self, controller)->None:
+        self.__match_controller = controller
    
     def init(self)->None:
         self.__team_name_text.setText(self.__team_name)
-        self.__team_name_text.setFixedSize(500, 25)
+        self.__team_name_text.setFixedSize(500, 20)
         self.__team_name_text.setObjectName("team-name")
         self.__team_name_text.setStyleSheet("#team-name{font-weight:500;font-size:14px;border:1px solid #777; color:grey;}")
         self.__team_name_text.setAlignment(Qt.AlignLeft)
         self.__team_name_text.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         self.__team_name_edit.setPlaceholderText('Team Name')
-        self.__team_name_edit.setFixedSize(500, 25)
+        self.__team_name_edit.setFixedSize(500, 20)
         self.__team_name_edit.setObjectName('team-name-edit')
         self.__team_name_edit.setStyleSheet("#team-name-edit{font-size:16px;}")
         self.__team_name_edit.setAlignment(Qt.AlignLeft)
@@ -300,10 +343,11 @@ class TeamLoadWidget(QWidget):
         self.__team_name_edit.hide()
         self.__team_name_edit.returnPressed.connect(self.change_team_name)
 
-        self.__change_team_name.setFixedSize(100, 25)
+        self.__change_team_name.setFixedSize(100, 20)
         self.__change_team_name.clicked.connect(self.team_name_clicked)
 
         self.__formations_dd.addItem(self.__formations_default_text)
+        self.__formations_dd.addItem("4-4-2")
         self.__formations_dd.setFixedWidth(200)
 
         self.__team_name_layout.addWidget(self.__team_name_text)
@@ -314,7 +358,6 @@ class TeamLoadWidget(QWidget):
         self.__team_name_layout.setContentsMargins(0,0,0,0)
         # self.__team_name_layout.setSizeConstraint(self.__team_name_layout.sizeConstraint())
         
-
         self.__line_up_title.setObjectName("line-up-title")
         self.__line_up_title.setStyleSheet("#line-up-title{font-size:14px; font-weight:500; border:1px solid grey; color:grey;}")
         self.__line_up_title.setAlignment(Qt.AlignLeft)
@@ -404,20 +447,29 @@ class TeamLoadWidget(QWidget):
 
         if clear_to_save:
             # Collect the data into an object and save
-            for player in self.__team_list:
+            for idx, player in enumerate(self.__team_list):
                 if 'players' not in self.__data:
                     self.__data['players'] = []
-                self.__data['players'].append(player.get_player_info())
+                if len(self.__data['players']) == 11: # It means we have all the players
+                    self.__data['players'][idx] = player.get_player_info()
+                else:
+                    self.__data['players'].append(player.get_player_info())
 
-            for sub in self.__subs_list:
+            for idx, sub in enumerate(self.__subs_list):
                 if 'subs' not in self.__data:
                     self.__data['subs'] = []
-                self.__data['subs'].append(sub.get_player_info())
+                if len(self.__data['subs']) == 5:
+                    self.__data['subs'][idx] = sub.get_player_info()
+                else:
+                    self.__data['subs'].append(sub.get_player_info())
 
-            self.__data['team_name'] = self.__team_name
+            self.__data['name'] = self.__team_name
             self.__data['color'] = self.__team_color
             self.__data['formation'] = self.__team_formation
             # Update the controller and send a signal 
+            if self.__match_controller is not None:
+                self.__match_controller.set_team(self.__left_team, self.__data) 
+            self.hide()
 
         else:
             # Open and Error Dialog
@@ -432,9 +484,13 @@ class TeamLoadWidget(QWidget):
     def select_team_color(self)->None:
         color = QColorDialog.getColor()
         if color.isValid():
-           self.__team_color = color.name()
-
-
+            self.__team_color = color.name()
+            for player in self.__team_list:
+               player.set_team_color(self.__team_color)
+            
+            for sub in self.__subs_list:
+                sub.set_team_color(self.__team_color)
+            
 
 class TeamViewWidget(QWidget):
     def __init__(self, color, left = True, parent=None)->None:
@@ -445,7 +501,8 @@ class TeamViewWidget(QWidget):
         self.__formation = "4-4-2"
         self.__team_name = "Kaizer Chiefs"
         self.__left_team = left
-
+        self.__team_color = color
+       
         self.__players_w = [PlayerView(self.__positions[j], self.__players[j], color) for j in range(11)]
         self.__layout = QGridLayout()
         self.__bottom_layout = QVBoxLayout()
@@ -456,6 +513,33 @@ class TeamViewWidget(QWidget):
         widgSize.setHeight(widgSize.height()+60)
         self.setFixedSize(widgSize)
 
+    def set_team_players(self, players:list[dict])->None:
+        for i, player in enumerate(players):
+            self.__positions[i] = player['position']
+            self.__players[i] = player['jersey_number']
+        self.__update_players()
+
+    def set_team_color(self, color:str)->None:
+        self.__team_color = color 
+
+    def set_team_name(self, team_name)->None:
+        self.__team_name = team_name   
+
+    def __update_players(self)->None:
+        for player_widget in self.__players_w:
+            position = player_widget.get_position()
+            idx = self.__positions.index(position)
+            player_widget.set_jersey_number(self.__players[idx])
+            player_widget.set_color(self.__team_color)
+    
+    def set_team_info(self, team_info:dict)->None:
+        self.__team_color = team_info['color']
+        self.__team_name = team_info['name']
+        self.__formation = team_info['formation']
+        self.set_team_players(team_info['players'])
+        self.__team_name_view.setText(f"Name:\t{self.__team_name}")
+        self.__team_formations_view.setText(f"Formation:\t{self.__formation}")
+
     def init(self)->None:
         if self.__left_team:
             self.arrange_left_players()
@@ -465,7 +549,7 @@ class TeamViewWidget(QWidget):
         self.add_team_stats()
 
         self.__main_layout.addLayout(self.__layout)
-        # self.__main_layout.addLayout(self.__bottom_layout)
+        self.__main_layout.addLayout(self.__bottom_layout)
         self.setLayout(self.__main_layout)
 
     def arrange_left_players(self)->None:
@@ -490,9 +574,11 @@ class TeamViewWidget(QWidget):
     def add_team_stats(self)->None:
         self.__team_name_view = QLabel(f"Name:\t{self.__team_name}")
         self.__team_name_view.setObjectName("team-name-view")
-        self.__team_name_view.setStyleSheet("#team-name-view{border-bottom:1px solid black;}")
+        self.__team_name_view.setStyleSheet("#team-name-view{border-bottom:1px solid black; color:white; font-weight:500; font-size:16px;}")
 
         self.__team_formations_view = QLabel(f"Formation:\t{self.__formation}")
+        self.__team_formations_view.setObjectName("team-formations-view")
+        self.__team_formations_view.setStyleSheet("#team-formations-view{border-bottom:1px solid black; color:white; font-weight:500; font-size:16px;}")
         
         self.__bottom_layout.addWidget(self.__team_name_view)
         self.__bottom_layout.addWidget(self.__team_formations_view)
@@ -501,24 +587,24 @@ class TeamViewWidget(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
-        pen = QPen(Qt.black, 2, Qt.SolidLine)
+        pen = QPen(Qt.white, 2, Qt.SolidLine)
         painter.setPen(pen)
         
-        brush = QColor(self.__color)
+        brush = QColor(self.__team_color)
         painter.setBrush(brush)
 
         # # Get the widget's width and height
-        # widget_width = self.width()
-        # widget_height = self.height()
+        widget_width = self.width()
+        widget_height = self.height()
         
-        # # Circle parameters
-        # circle_radius = 20
-        # circle_diameter = circle_radius * 2
-        # # Calculate the position to draw the circle at the bottom center
-        # x_position = (widget_width - circle_diameter) // 2
-        # y_position = (widget_height - circle_diameter - 5) 
-        # # Draw the circle
-        # painter.drawEllipse(x_position, y_position, circle_diameter, circle_diameter)
+        # Circle parameters
+        circle_radius = 20
+        circle_diameter = circle_radius * 2
+        # Calculate the position to draw the circle at the bottom center
+        x_position = (widget_width - circle_diameter) // 2
+        y_position = (widget_height - circle_diameter - 5) 
+        # Draw the circle
+        painter.drawEllipse(x_position, y_position, circle_diameter, circle_diameter)
         
 
  
@@ -527,9 +613,21 @@ class MatchViewWidget(QWidget):
         super().__init__(parent)
         self.__teams = [TeamViewWidget('blue', True, self), TeamViewWidget('red',False, self)]
         self.__layout = QHBoxLayout()
-
+        self.__match_controller = None
         self.init()
 
+    def set_match_controller(self, controller)->None:
+        self.__match_controller = controller
+        if self.__match_controller is not None:
+            self.__match_controller.set_team_view(True, self.__teams[0])
+            self.__match_controller.set_team_view(False, self.__teams[1])
+
+    def set_left_team(self, team_info:dict)->None:
+        self.__teams[0].set_team_info(team_info)
+    
+    def set_right_team(self, team_info:dict)->None:
+        self.__teams[1].set_team_info(team_info)
+        
     def init(self)->None:
         self.__layout.addWidget(self.__teams[0])
         self.__layout.addWidget(self.__teams[1])
@@ -572,7 +670,7 @@ class MatchViewWidget(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    player = MatchViewWidget()
+    player = TeamLoadWidget()
     player.show()
 
     app.exec_()

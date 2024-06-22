@@ -17,7 +17,14 @@ class PlayerInfoModel:
 
 class TeamModel:
     def __init__(self) -> None:
-        pass
+        self.__team_data  = None
+        
+    def set_team_info(self, data)->None:
+        self.__team_data = data
+
+    def get_team_info(self)->dict:
+        return self.__team_data
+
 
 class MatchModel:
     def __init__(self)->None:

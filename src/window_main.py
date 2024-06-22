@@ -5,8 +5,10 @@ from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
 from camera.controller import CamerasManager
 from tracking_interface import PlayerIDAssociationApp
-from team_information_view.widgets import MatchViewWidget
+from team_information_view.widgets import MatchViewWidget, TeamLoadWidget
+from team_information_view.controller import MatchController
 from cfg.paths_config import __ASSETS_DIR__
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -42,6 +44,18 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.__tabs)
         self.setStatusBar(self.__status_bar)
 
+        #Tracking Stuff
+        self.load_view_a = None
+        self.load_view_b = None
+
+        self.__match_controller = None
+    
+    def set_match_controller(self, controller)->None:
+        self.__match_controller = controller
+        if self.__match_controller is not None:
+            self.__match_view_w.set_match_controller(self.__match_controller)
+    
+
     def init_menue(self)->None:
         # Create a menu bar
         self.menuBar = self.menuBar()
@@ -52,6 +66,9 @@ class MainWindow(QMainWindow):
         start_recording.setStatusTip('Start recording all 3 streams')
         file_menu.addAction(start_recording)
 
+        team_info_menu = self.menuBar.addMenu('&Team')
+        formations = QAction('&Formations', self)
+        team_info_menu.addAction(formations)
         # Add actions to the File menu
         exit_action = QAction('&Exit', self)
         exit_action.setShortcut('Ctrl+Q')
@@ -86,12 +103,29 @@ class MainWindow(QMainWindow):
             qHorizantal_layout.addWidget(cam_widget)
         self.__cameras_tab.setLayout(qHorizantal_layout)
 
+    def load_team_a(self)->None:
+        if self.load_view_a is None:
+            self.load_view_a = TeamLoadWidget(True, self.parentWidget())
+            self.load_view_a.set_match_controller(self.__match_controller)
+            self.load_view_a.show()
+        else:
+            self.load_view_a.show()
+
+
+    def load_team_b(self)->None:
+        if self.load_view_b is None:
+            self.load_view_b = TeamLoadWidget(False, self.parentWidget())
+            self.load_view_b.set_match_controller(self.__match_controller)
+            self.load_view_b.show()
+        else:
+            self.load_view_b.show()
+        
     def create_track_page(self)->None:
         self.t_layout = QVBoxLayout()
         self.__buttons_layout = QHBoxLayout()
         self.open_button = QPushButton(" Start Tracking")
 
-        self.__load_team_a = QPushButton('Load Beam A')
+        self.__load_team_a = QPushButton('Load Team A')
         self.__load_team_b = QPushButton('Load Team B')
     
 
@@ -104,7 +138,10 @@ class MainWindow(QMainWindow):
         self.open_button.clicked.connect(self.enable_track_window)
 
         self.__load_team_a.setFixedSize(100, 24)
+        self.__load_team_a.clicked.connect(self.load_team_a)
+
         self.__load_team_b.setFixedSize(100, 24)
+        self.__load_team_b.clicked.connect(self.load_team_b)
 
         self.__buttons_layout.addWidget(self.open_button)
         self.__buttons_layout.addWidget(self.__load_team_a, stretch=0)
@@ -112,23 +149,18 @@ class MainWindow(QMainWindow):
         self.__buttons_layout.setSpacing(0)
         self.__buttons_layout.setAlignment(Qt.AlignLeft)
 
-
         self.__match_view_w = MatchViewWidget()
         self.__match_view_w.setStyleSheet(
-            """
+                        """
                            #match-view{
                             background-image:url(""" + bg_path + """); 
                             background-repeat:no-repeat; 
                             background-position:center;
                             border:1px solid black;
                            }"""
-        )
-
-
+                        )
         self.t_layout.addLayout(self.__buttons_layout)
         self.t_layout.addWidget(self.__match_view_w)
-        
-        # t_layout.addWidget(PlayerIDAssociationApp(self))
         self.__track_tab.setLayout(self.t_layout)
     
     def enable_track_window(self)->None:
@@ -145,7 +177,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_window = MainWindow()
     cameras_manager = CamerasManager(main_window.get_camera_widgets())
-    match_controller = None
+    match_controller = MatchController()
+    main_window.set_match_controller(match_controller)
     main_window.show()
     app.exec_()
     cameras_manager.stop()
