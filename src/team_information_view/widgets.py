@@ -1,7 +1,7 @@
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtWidgets import (QLabel, QLineEdit, QPushButton, QWidget, QApplication, 
                             QVBoxLayout, QGridLayout, QHBoxLayout, QSizePolicy, 
-                            QSpacerItem, QComboBox, QColorDialog, QMessageBox, QDialog, QDialogButtonBox)
+                            QSpacerItem, QComboBox, QColorDialog, QMessageBox, QDialog, QDialogButtonBox, QStyleOption, QStyle)
 from PyQt5.QtSvg import (QSvgWidget, QSvgRenderer)
 from PyQt5.QtGui import QImage, QMouseEvent, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtXml import QDomDocument
@@ -55,6 +55,21 @@ class SvgManipulator(QWidget):
         self.renderer.render(painter)
         painter.end()
         self.label.setPixmap(pixmap)
+        self.setLayout(layout)
+
+        self.setObjectName("jersey-widget")
+        self.setStyleSheet("""
+                    #jersey-widget{
+                        border:1px solid black;   
+
+                    }
+            """)
+    
+    def paintEvent(self, paint_event)->None:
+        style_op = QStyleOption()
+        style_op.initFrom(self)
+        painter = QPainter(self)
+        self.style().drawPrimitive(QStyle.PE_Widget, style_op, painter, self)
         
         
 
@@ -165,7 +180,13 @@ class PlayerView(QWidget):
         self.__number_w = QLabel()
         self.__layout = QVBoxLayout()
         self.setObjectName("player-view")
-        self.setStyleSheet("#player-view{font-weight:500;}")
+        self.setStyleSheet("""
+                           #player-view{
+                                font-weight:500; 
+                                border:1px solid white;
+                                border-radius:5;
+                                background-color: rgba(255, 255, 255, 100);
+                    }""")
         self.init()
     
     def init(self)->None:
@@ -173,7 +194,7 @@ class PlayerView(QWidget):
         self.__position_w.setFixedSize(100, 16)
         self.__position_w.setAlignment(Qt.AlignHCenter)
         self.__position_w.setObjectName("position-view")
-        self.__position_w.setStyleSheet("#position-view{font-weight:500; color:green;}")
+        self.__position_w.setStyleSheet("#position-view{font-weight:500; color:black;}")
 
         # self.__icon_w.setPixmap(self.__prepare_icon())
         # self.__icon_w.setPixmap(self.__prepare_icon())
@@ -186,7 +207,7 @@ class PlayerView(QWidget):
         self.__number_w.setFixedSize(100, 16)
         self.__number_w.setAlignment(Qt.AlignHCenter)
         self.__number_w.setObjectName("jersey-view")
-        self.__number_w.setStyleSheet("#jersey-view{font-weight:500; color:grey;}")
+        self.__number_w.setStyleSheet("#jersey-view{font-weight:500; color:navy-blue;}")
 
         self.__layout.addWidget(self.__position_w)
         self.__layout.addWidget(self.__icon_w)
@@ -204,6 +225,28 @@ class PlayerView(QWidget):
         player_stats.exec_()
 
         return super().mousePressEvent(event)
+    
+    def paintEvent(self, paint_event)->None:
+        style_op = QStyleOption()
+        style_op.initFrom(self)
+        painter = QPainter(self)
+        self.style().drawPrimitive(QStyle.PE_Widget, style_op, painter, self)
+
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # Draw the frosted glass effect
+        self.drawFrostedGlassEffect(painter)
+
+    def drawFrostedGlassEffect(self, painter):
+        # Draw a translucent white rectangle for the frosted effect
+        rect = self.rect()
+        frosted_color = QColor(255, 255, 255, 50)
+        painter.fillRect(rect, frosted_color)
+
+        # Draw another layer with a slight opacity to simulate blur (not a real blur)
+        overlay_color = QColor(255, 255, 255, 20)
+        painter.fillRect(rect, overlay_color)
+       
 
 class TeamLoadWidget(QWidget):
     def __init__(self, parent=None)->None:
@@ -422,7 +465,7 @@ class TeamViewWidget(QWidget):
         self.add_team_stats()
 
         self.__main_layout.addLayout(self.__layout)
-        self.__main_layout.addLayout(self.__bottom_layout)
+        # self.__main_layout.addLayout(self.__bottom_layout)
         self.setLayout(self.__main_layout)
 
     def arrange_left_players(self)->None:
@@ -464,25 +507,25 @@ class TeamViewWidget(QWidget):
         brush = QColor(self.__color)
         painter.setBrush(brush)
 
-        # Get the widget's width and height
-        widget_width = self.width()
-        widget_height = self.height()
+        # # Get the widget's width and height
+        # widget_width = self.width()
+        # widget_height = self.height()
         
-        # Circle parameters
-        circle_radius = 20
-        circle_diameter = circle_radius * 2
-        # Calculate the position to draw the circle at the bottom center
-        x_position = (widget_width - circle_diameter) // 2
-        y_position = (widget_height - circle_diameter - 5) 
-        # Draw the circle
-        painter.drawEllipse(x_position, y_position, circle_diameter, circle_diameter)
+        # # Circle parameters
+        # circle_radius = 20
+        # circle_diameter = circle_radius * 2
+        # # Calculate the position to draw the circle at the bottom center
+        # x_position = (widget_width - circle_diameter) // 2
+        # y_position = (widget_height - circle_diameter - 5) 
+        # # Draw the circle
+        # painter.drawEllipse(x_position, y_position, circle_diameter, circle_diameter)
         
 
  
 class MatchViewWidget(QWidget):
     def __init__(self, parent= None) -> None:
         super().__init__(parent)
-        self.__teams = [TeamViewWidget('green', True, self), TeamViewWidget('red',False, self)]
+        self.__teams = [TeamViewWidget('blue', True, self), TeamViewWidget('red',False, self)]
         self.__layout = QHBoxLayout()
 
         self.init()
@@ -496,14 +539,33 @@ class MatchViewWidget(QWidget):
     def set_background(self)->None:
         path = (__ASSETS_DIR__ / 'soccer_pitch_poles.png').resolve().as_posix()
         self.setObjectName("match-view")
-    
+        # Load and resize the background image
+        self.background_image = QPixmap(path)
+        self.background_image = self.background_image.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        
         self.setStyleSheet("""
                            #match-view{
                             background-image:url(""" + path + """); 
                             background-repeat:no-repeat; 
                             background-position:center;
+                            background-size:cover;
                             border:1px solid black;
                            }""")
+        
+    def resizeEvent(self, event):
+        # Resize the background image when the widget is resized
+        # self.background_image = QPixmap("path/to/your/image.jpg")
+        self.background_image = self.background_image.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        self.update()
+        
+    def paintEvent(self, paint_event)->None:
+        style_op = QStyleOption()
+        style_op.initFrom(self)
+        painter = QPainter(self)
+        self.style().drawPrimitive(QStyle.PE_Widget, style_op, painter, self)
+
+         # Draw the background image
+        painter.drawPixmap(self.rect(), self.background_image)
 
 
 
