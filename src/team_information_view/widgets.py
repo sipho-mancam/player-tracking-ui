@@ -22,9 +22,9 @@ class SvgManipulator(QWidget):
         with open(self.svg_path, 'r') as f:
             self.dom_document.setContent(f.read())
         # Manipulate the SVG DOM
-        
         self.set_color(f"{color}")
         self.set_jersey_number(f"{jersey_number}")
+       
         # Render the manipulated SVG
         self.renderer = QSvgRenderer(self.dom_document.toByteArray())
         # Setup UI
@@ -37,6 +37,9 @@ class SvgManipulator(QWidget):
             elem.setAttribute('fill', color)
     
     def set_jersey_number(self, number:int|str)->None:
+        if int(number)//10 ==0:
+            number = f"0{number}"
+        
         elements = self.dom_document.elementsByTagName("text")
         for i in range(elements.count()):
             element = elements.item(i).toElement()
@@ -86,17 +89,17 @@ class SvgManipulator(QWidget):
         
 
 class PlayerItem(QWidget):
-    def __init__(self, position, parent=None)->None:
+    def __init__(self, position, jersey_number = 90, color='bule', parent=None)->None:
         super().__init__(parent)
         self.__layout = QVBoxLayout(self)
         self.__icon = QLabel()
         self.__text = QLabel()
         self.__position_widget = QLabel()
         self.__text_edit = QLineEdit()
-        self.__color = 'blue'
+        self.__color = color
 
-        self.__player_name = "90"
-        self.__jersey_number = 90
+        self.__player_name = jersey_number
+        self.__jersey_number = jersey_number
         self.__player_position = position
         self.__updated = False
         self.setLayout(self.__layout)
@@ -286,7 +289,7 @@ class PlayerView(QWidget):
        
 
 class TeamLoadWidget(QWidget):
-    def __init__(self, left_team=True, parent=None)->None:
+    def __init__(self, left_team=True, controller=None, parent=None)->None:
         super().__init__(parent)
         self.setWindowTitle("Load Team Information")
         self.__main_layout = QVBoxLayout(self)
@@ -307,35 +310,62 @@ class TeamLoadWidget(QWidget):
        
         self.__change_team_name = QPushButton("Change Name")
 
-        self.__positions = ["GK", "LOB", "LCB", "RCB", "ROB", "LW", "CM", "DCM", "RW", "ACM", "CF"]
-        self.__team_list = [PlayerItem(self.__positions[i]) for i in range(11)]
-        self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
         self.__left_team = left_team
+        self.__match_controller = controller
+        self.__positions = ["GK", "LOB", "LCB", "RCB", "ROB", "LW", "CM", "DCM", "RW", "ACM", "CF"]
+
         self.__team_name = "Kaizer Chiefs"
         self.__team_formation = ""
         self.__team_color = ""
         self.__whats_missing = ""
         self.__data = {}
-        self.__match_controller = None
+
+        if self.__match_controller:
+            team  = self.__match_controller.get_team_data(self.__left_team)
+            self.__team_list = [PlayerItem(player.get('position'), player.get('jersey_number'), team.get('color')) for i, player in enumerate(team['players'])]
+            self.__subs_list = [PlayerItem(sub.get('position'), sub.get('jersey_number'), team.get('color')) for sub in team['subs']]
+            self.__team_color = team.get('color')
+            self.__team_formation = team.get('formation')
+            self.__team_name = team.get('name')
+            # self.__formations_dd.setCurrentText(self.__team_formation)
+        else:
+            self.__team_list = [PlayerItem(self.__positions[i]) for i in range(11)]
+            self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
+        
+        self.__formation_controller = None if self.__match_controller is None else self.__match_controller.get_formations_controller()
 
         self.setObjectName("team-show")
         self.setLayout(self.__main_layout)
         self.init()
         self.setFixedSize(self.sizeHint())
 
+    def showEvent(self, show_event)->None:
+        
+        while self.__formations_dd.count() > 1:
+            x = self.__formations_dd.count()
+            for i in range(1, x, 1):
+                self.__formations_dd.removeItem(i)
+            
+        if self.__formation_controller is not None:
+            for i, form_name in enumerate(self.__formation_controller.get_formations_list()):  
+                self.__formations_dd.insertItem(i+1, form_name)
+        super().showEvent(show_event)
+
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
+        self.__formation_controller = self.__match_controller.get_formations_controller()
+        
    
     def init(self)->None:
         self.__team_name_text.setText(self.__team_name)
-        self.__team_name_text.setFixedSize(500, 20)
+        self.__team_name_text.setFixedSize(500, 22)
         self.__team_name_text.setObjectName("team-name")
         self.__team_name_text.setStyleSheet("#team-name{font-weight:500;font-size:14px;border:1px solid #777; color:grey;}")
         self.__team_name_text.setAlignment(Qt.AlignLeft)
         self.__team_name_text.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         self.__team_name_edit.setPlaceholderText('Team Name')
-        self.__team_name_edit.setFixedSize(500, 20)
+        self.__team_name_edit.setFixedSize(500, 22)
         self.__team_name_edit.setObjectName('team-name-edit')
         self.__team_name_edit.setStyleSheet("#team-name-edit{font-size:16px;}")
         self.__team_name_edit.setAlignment(Qt.AlignLeft)
@@ -343,12 +373,11 @@ class TeamLoadWidget(QWidget):
         self.__team_name_edit.hide()
         self.__team_name_edit.returnPressed.connect(self.change_team_name)
 
-        self.__change_team_name.setFixedSize(100, 20)
+        self.__change_team_name.setFixedSize(100, 30)
         self.__change_team_name.clicked.connect(self.team_name_clicked)
 
         self.__formations_dd.addItem(self.__formations_default_text)
-        self.__formations_dd.addItem("4-4-2")
-        self.__formations_dd.setFixedWidth(200)
+        self.__formations_dd.setFixedSize(200, 30)
 
         self.__team_name_layout.addWidget(self.__team_name_text)
         self.__team_name_layout.addWidget(self.__team_name_edit)
@@ -356,8 +385,7 @@ class TeamLoadWidget(QWidget):
         self.__team_name_layout.addWidget(self.__formations_dd)
         self.__team_name_layout.setAlignment(Qt.AlignLeft)
         self.__team_name_layout.setContentsMargins(0,0,0,0)
-        # self.__team_name_layout.setSizeConstraint(self.__team_name_layout.sizeConstraint())
-        
+     
         self.__line_up_title.setObjectName("line-up-title")
         self.__line_up_title.setStyleSheet("#line-up-title{font-size:14px; font-weight:500; border:1px solid grey; color:grey;}")
         self.__line_up_title.setAlignment(Qt.AlignLeft)
@@ -381,8 +409,7 @@ class TeamLoadWidget(QWidget):
             self.__subs_layout.addWidget(sub, row, col)
 
         self.__subs_main_layout.addLayout(self.__subs_layout)
-        # self.__subs_layout.addItem(self.__sub_right_space)
-
+     
         self.__save_button.setFixedWidth(200)
         self.__save_button.clicked.connect(self.save_information)
 
@@ -444,6 +471,13 @@ class TeamLoadWidget(QWidget):
             if len(self.__team_color) == 0:
                 self.__whats_missing = "Please make sure to select the team's color"
                 clear_to_save = False
+
+        clear_to_save = self.__match_controller.is_match_init()
+
+        if self.__formations_dd.currentText() == self.__formations_default_text and self.__match_controller.is_match_init():
+            self.__formations_dd.setCurrentText(self.__team_formation)
+        else:
+            self.__team_formation = self.__formations_dd.currentText()
 
         if clear_to_save:
             # Collect the data into an object and save
@@ -515,6 +549,7 @@ class TeamViewWidget(QWidget):
 
     def set_team_players(self, players:list[dict])->None:
         for i, player in enumerate(players):
+            # print(player)
             self.__positions[i] = player['position']
             self.__players[i] = player['jersey_number']
         self.__update_players()
@@ -606,8 +641,6 @@ class TeamViewWidget(QWidget):
         # Draw the circle
         painter.drawEllipse(x_position, y_position, circle_diameter, circle_diameter)
         
-
- 
 class MatchViewWidget(QWidget):
     def __init__(self, parent= None) -> None:
         super().__init__(parent)
@@ -622,6 +655,8 @@ class MatchViewWidget(QWidget):
             self.__match_controller.set_team_view(True, self.__teams[0])
             self.__match_controller.set_team_view(False, self.__teams[1])
             self.__match_controller.set_match_view_widget(self)
+            if self.__match_controller.is_match_init():
+                self.update_match_info(self.__match_controller.get_match_info())
 
     def set_left_team(self, team_info:dict)->None:
         self.__teams[0].set_team_info(team_info)
@@ -734,6 +769,7 @@ class FormationManagerView(QWidget):
         self.__name = ""
         self.__data = {}
         self.__whats_missing = ""
+        self.__formations_controller = None
         
         self.init()
         self.setFixedSize(self.sizeHint())
@@ -743,6 +779,9 @@ class FormationManagerView(QWidget):
         pix_map = QPixmap(path.resolve().as_posix())
         pix_map = pix_map.scaled(600, 850)
         self.__half_pitch.setPixmap(pix_map)
+
+    def set_controller(self, controller)->None:
+        self.__formations_controller = controller
 
     def save_formation(self)->None:
         #Check if the formation name has been set
@@ -770,7 +809,9 @@ class FormationManagerView(QWidget):
                                                  'coordinates':self.__normalize_position(position.x(), position.y())})
                 position.clear_activation()
             
-            pprint.pprint(self.__data)
+            if self.__formations_controller is not None:
+                self.__formations_controller.create_formation(self.__data)
+
             self.hide()
         else:
             # Open and Error Dialog
@@ -815,6 +856,7 @@ class FormationManagerView(QWidget):
         self.__create_formation_button.clicked.connect(self.create_formation)
 
         self.__modify_formation_button.setFixedSize(100, 24)
+        self.__modify_formation_button.setDisabled(True)
 
         self.__save_button.setFixedSize(100, 24)
         self.__save_button.clicked.connect(self.save_formation)

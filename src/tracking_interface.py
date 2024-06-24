@@ -3,7 +3,7 @@ import cv2
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QGridLayout, 
                              QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QFrame,
                              QDialog, QDialogButtonBox, QComboBox, QLineEdit)
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtGui import QImage, QPixmap, QColor
 from PyQt5.QtCore import Qt, QTimer
 from threading import Thread, Event 
 from kafka import KConsumer, KProducer
@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 from team_states import TeamsManager
 from formations import FormationsManager
+from team_information_view.controller import MatchController
 
 class ClickableLabel(QLabel):
     def __init__(self, parent=None):
@@ -277,10 +278,7 @@ class TrackingData:
 
     def toggle_highlight(self)->None:
         self.__toggle_highlight = not self.__toggle_highlight
-        # print(self.__toggle_connections)
-
-
-
+      
 class CustomDialog(QDialog):
     def __init__(self, formationsList:list[str], parent=None):
         super().__init__(parent)
@@ -352,7 +350,7 @@ class SaveFormation(QDialog):
 
 
 class PlayerIDAssociationApp(QWidget):
-    def __init__(self, match_controller, parent=None):
+    def __init__(self, match_controller:MatchController, parent=None):
         super().__init__(parent)
         self.cap = None
         self.timer = QTimer()
@@ -361,8 +359,8 @@ class PlayerIDAssociationApp(QWidget):
         self.__kafka_consumer = None
         self.__tracking_data = TrackingData()
         self.__kafka_producer = None
-        self.__team_sheets = None
-        self.__formations_manager = FormationsManager()
+        # self.__team_sheets = None
+        # self.__formations_manager = FormationsManager()
         self.__init_associations = False
 
         self.__match_controller = match_controller
@@ -375,7 +373,7 @@ class PlayerIDAssociationApp(QWidget):
         self.bottom_layout = QHBoxLayout()
         self.__teams_buttons = []
         self.__teams_widgets = []
-        self.read_team_sheets()
+        # self.read_team_sheets()
         self.initUI()
         self.__match_controller.set_player_tracking_interface(self)
 
@@ -403,10 +401,7 @@ class PlayerIDAssociationApp(QWidget):
 
         left_vertical_layout = QVBoxLayout()
         left_grid = QGridLayout()
-        team_a = self.__team_sheets.get('Team A')
-        self.teams_manager = TeamsManager(self.__team_sheets)
-        self.__tracking_data.set_teams_manager(self.teams_manager)
-
+      
         self.buttons = [ButtonWithID(f'{player.get("position")}  - {player.get("jersey_number")}', 
                                      {'id':int(player.get("jersey_number")), 'team':0 if left else 1, 'position':player.get("position")}, 
                                     self) for  player in players]
@@ -423,7 +418,6 @@ class PlayerIDAssociationApp(QWidget):
         
         team_a_text = QLabel(team_data.get("name"), self)
         self.__teams_widgets[current_index]['team_name'] = team_a_text
-
         
         team_a_text.setStyleSheet(""" 
                                 QLabel {
@@ -438,7 +432,6 @@ class PlayerIDAssociationApp(QWidget):
 
     def update_match_info(self, match_info:list)->None:
         self.__match_data = match_info
-
         for idx, team in enumerate(match_info):
             self.__teams_widgets[idx]['team_name'].setText(team.get('name'))
             for player in team['players']:
@@ -475,6 +468,7 @@ class PlayerIDAssociationApp(QWidget):
         self.bottom_layout.setContentsMargins(0,0,0,0)
 
         self.init_top_bar()
+
         # Initialize team A (Left Team)
         self.init_team(True)
         #Initialize Team B (Right Team)
@@ -496,51 +490,52 @@ class PlayerIDAssociationApp(QWidget):
         self.main_layout.addLayout(self.bottom_layout)
         self.setLayout(self.main_layout)
         self.resize(800, 600)
-    
+
         # load the mini_map bg
-        self.__frame = cv2.imread(__MINI_MAP_BG__.as_posix(), cv2.COLOR_BGR2RGB)
-        height, width,  _ = self.__frame.shape
-        self.__frame = cv2.resize(self.__frame, (width//2, height//2-100))
+        self.__frame = QImage(__MINI_MAP_BG__.as_posix())
+        height, width,  _ = self.__frame.height(), self.__frame.width(), 3
+        self.__frame = self.__frame.scaled(width//2, height//2-100)
         self.image_label.setFixedSize(width//2, height//2-100)
         self.image_label.setMargin(0)
+        self.image_label.setPixmap(QPixmap.fromImage(self.__frame))
+        self.image_label.setObjectName("frame_view")
+        self.image_label.setStyleSheet("#frame_view{border:1px solid black;}")
+
+        self.__frame = cv2.imread(__MINI_MAP_BG__.as_posix())
+        self.__frame = cv2.resize(self.__frame, (width//2, height//2-100))
+
         self.start_updates_timer()
         self.show()
         self.setFixedSize(self.size())
+    
+    def update(self):
+        frame = self.__frame.copy()
+        if frame is None:
+            return
+    
+        frame = self.render_team(frame, self.__match_controller.get_team_data(True))
+        frame = self.render_team(frame, self.__match_controller.get_team_data(False))
+        # self.__kafka_consumer is not None
+        # if self.__kafka_consumer.is_data_ready():
+        #     tracking_data = self.__kafka_consumer.getTrackingData(as_json=True)
+        #     if tracking_data and  'tracks' in tracking_data:
+        #         self.__tracking_data.update(tracking_data['tracks'], self.__init_associations)
+        #         self.__tracking_data.publish()
+        #         self.__init_associations = False
+        #     self.update_mini_map(frame, self.__tracking_data.get_data())
 
-    def show_add_formation_dialog(self)->None:
-        dialog = CustomDialog(self.__formations_manager.get_formations(), self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_option = dialog.get_selected_option()
-            if selected_option  == 'custom':
-                add_formation = AddFormation(self)
-                if add_formation.exec_() == QDialog.Accepted:
-                    formation_name = add_formation.get_formation_name()
-                    self.__formations_manager.create_formation(formation_name)
-                    self.image_label.registerFormationsCB(self.__formations_manager.handle_mouse_click)
-                    self.image_label.setFormationsRoutine()
-            else:
-                self.__tracking_data.get_teams_manager().get_current_team_initializing().get_formations_manager().select_formation(selected_option)
-                    
-    def check_formation_complete(self)->bool:
-        if self.__formations_manager.is_players_11() and self.__formations_manager.is_creating_formations():
-            ask = SaveFormation(self)
-            if ask.exec_() == QDialog.Accepted:
-                self.__formations_manager.save_formation()
-                self.image_label.clearFormationsRoutine()
-            # clear the formation mouse handler
-            # call the save formation call
+        height, width, channel = frame.shape
+        bytes_per_line = 3 * width
+        q_img = QImage(frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        self.image_label.setPixmap(QPixmap.fromImage(q_img))
 
-    def update_from_formations(self, frame:cv2.Mat)->None:
-        for player in self.__formations_manager.get_players_list():
-            frame = cv2.circle(frame, player, 20, (255, 255,255), cv2.FILLED)
-        return frame
 
-    def open_video_dialog(self):
-        options = QFileDialog.Options()
-        options |= QFileDialog.ReadOnly
-        video_path, _ = QFileDialog.getOpenFileName(self, "Open Video File", "", "Video Files (*.mp4 *.avi *.mov);;All Files (*)", options=options)
-        if video_path:
-            self.start_video(video_path)
+    # def open_video_dialog(self):
+    #     options = QFileDialog.Options()
+    #     options |= QFileDialog.ReadOnly
+    #     video_path, _ = QFileDialog.getOpenFileName(self, "Open Video File", "", "Video Files (*.mp4 *.avi *.mov);;All Files (*)", options=options)
+    #     if video_path:
+    #         self.start_video(video_path)
 
     def start_updates_timer(self):
         self.timer.start(50)  # Update every 30 ms (approx 33 FPS)
@@ -574,11 +569,36 @@ class PlayerIDAssociationApp(QWidget):
                     frame = self.draw_connection_line(frame, point1, point2, offsets, dimensions)
         return frame
     
-    def update_mini_map(self, frame:cv2.Mat, detections)->cv2.Mat:
-        if self.__formations_manager.is_creating_formations():
-            frame = self.update_from_formations(frame)
-            return frame
+    def render_team(self, frame, team_info)->None:
+        width = 0.89 * frame.shape[1] 
+        height = 0.895 * frame.shape[0]
+        clone_bg = frame
+        x_offset = 140//2
+        y_offset = 85//2
+        color = team_info['color']
 
+        cr = QColor(color)
+        color = (cr.red(), cr.green(), cr.blue())
+
+        for _, det in enumerate(team_info['players']):
+            coord = det['coordinates'] 
+            if coord is not None :
+                x_scaled = x_offset + int(coord[0]*width)
+                y_scaled = y_offset + int(coord[1]*height)
+                det['ui_coordinates'] = (x_scaled, y_scaled)
+
+                clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 15,  color, cv2.FILLED)
+
+                if det.get('jersey_number') is not None:
+                    if det.get('highlight') == 1:
+                        text_color = (255, 0, 0)
+                    else:
+                        text_color = (255, 255, 255)
+
+                    clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled-5, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+        return clone_bg
+    
+    def update_mini_map(self, frame:cv2.Mat, detections)->cv2.Mat:
         width = 0.89 * frame.shape[1] 
         height = 0.895 * frame.shape[0]
         clone_bg = frame
@@ -623,27 +643,8 @@ class PlayerIDAssociationApp(QWidget):
                     clone_bg = cv2.putText(clone_bg, f"??", (x_scaled, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,0), 2)
         return clone_bg
 
-    def update(self):
-        frame = self.__frame.copy()
-        if frame is None:
-            return
+   
         
-        # check if there's any data ready here.  
-        self.__kafka_consumer is not None
-        if self.__kafka_consumer.is_data_ready():
-            tracking_data = self.__kafka_consumer.getTrackingData(as_json=True)
-            if tracking_data and  'tracks' in tracking_data:
-                self.__tracking_data.update(tracking_data['tracks'], self.__init_associations)
-                self.__tracking_data.publish()
-                self.__init_associations = False
-            self.update_mini_map(frame, self.__tracking_data.get_data())
-
-        height, width, channel = frame.shape
-        bytes_per_line = 3 * width
-        q_img = QImage(frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        self.image_label.setPixmap(QPixmap.fromImage(q_img))
-        self.image_label.setObjectName("frame_view")
-        self.image_label.setStyleSheet("#frame_view{border:1px solid black;}")
 
     def closeEvent(self, event):
         if self.cap is not None:

@@ -66,7 +66,7 @@ class FormationsManager:
 
     def load_formations(self)->None:
         # This loads the formations list.
-        with open((__TEAMS_DIR__ / Path('formations-list')).resolve().as_posix() + str('.json'), 'r') as fp:
+        with open((__TEAMS_DIR__ / Path('formations_list')).resolve().as_posix() + str('.json'), 'r') as fp:
             data = json.load(fp)
             self.__formations_list = data['formations']
 

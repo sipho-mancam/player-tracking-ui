@@ -57,8 +57,8 @@ class MainWindow(QMainWindow):
         if self.__match_controller is not None:
             self.__match_view_w.set_match_controller(self.__match_controller)
             self.__match_controller.set_start_button(self.open_button)
-    
-
+            self.open_button.setEnabled(self.__match_controller.is_match_init())
+           
     def init_menue(self)->None:
         # Create a menu bar
         self.menuBar = self.menuBar()
@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
         team_info_menu = self.menuBar.addMenu('&Team')
         formations = QAction('&Formations', self)
         formations.triggered.connect(self.open_formation_manager)
-        
+
         team_info_menu.addAction(formations)
         # Add actions to the File menu
         exit_action = QAction('&Exit', self)
@@ -104,6 +104,8 @@ class MainWindow(QMainWindow):
     def open_formation_manager(self)->None:
         if self.__formations_view is None:
             self.__formations_view = FormationManagerView(self.parentWidget())
+            if self.__match_controller is not None:
+                self.__formations_view.set_controller(self.__match_controller.get_formations_controller())
             self.__formations_view.show()
         else:
             self.__formations_view.show()
@@ -119,8 +121,8 @@ class MainWindow(QMainWindow):
 
     def load_team_a(self)->None:
         if self.load_view_a is None:
-            self.load_view_a = TeamLoadWidget(True, self.parentWidget())
-            self.load_view_a.set_match_controller(self.__match_controller)
+            self.load_view_a = TeamLoadWidget(True,self.__match_controller, self.parentWidget())
+            # self.load_view_a.set_match_controller(self.__match_controller)
             self.load_view_a.show()
         else:
             self.load_view_a.show()
@@ -128,8 +130,8 @@ class MainWindow(QMainWindow):
 
     def load_team_b(self)->None:
         if self.load_view_b is None:
-            self.load_view_b = TeamLoadWidget(False, self.parentWidget())
-            self.load_view_b.set_match_controller(self.__match_controller)
+            self.load_view_b = TeamLoadWidget(False, self.__match_controller, self.parentWidget())
+            # self.load_view_b.set_match_controller(self.__match_controller)
             self.load_view_b.show()
         else:
             self.load_view_b.show()
@@ -137,39 +139,49 @@ class MainWindow(QMainWindow):
     def swap_teams(self)->None:
         # Send an instruction to the controller to swap teams
         self.__match_controller.upload_message(0x00)
+        self.update()
         
     def create_track_page(self)->None:
         self.t_layout = QVBoxLayout()
         self.__buttons_layout = QHBoxLayout()
         self.open_button = QPushButton(" Start Tracking")
 
-        self.__load_team_a = QPushButton('Load Team A')
-        self.__load_team_b = QPushButton('Load Team B')
-        self.__swap_teams  = QPushButton("Swap Teams")
+        self.__load_team_a = QPushButton(' Configure Team A')
+        self.__load_team_b = QPushButton(' Configure Team B')
+        self.__swap_teams  = QPushButton(" Switch Sides")
 
         ico_path = (__ASSETS_DIR__ / 'play-24.ico').resolve().as_posix()
         bg_path = (__ASSETS_DIR__ / 'soccer_pitch_poles.png').resolve().as_posix()
         icon = QIcon(ico_path)
-        self.open_button.setFixedSize(100, 24)
+        self.open_button.setFixedSize(100, 30)
         # self.open_button.setFixedHeight(24)
         self.open_button.setIcon(icon)
         self.open_button.clicked.connect(self.enable_track_window)
         self.open_button.setDisabled(True)
 
-
-        self.__load_team_a.setFixedSize(100, 24)
+        b_icon_path =  (__ASSETS_DIR__ / 'blue_dot.png').resolve().as_posix()
+        b_icon = QIcon(b_icon_path)
+        self.__load_team_a.setFixedSize(120,30)
         self.__load_team_a.clicked.connect(self.load_team_a)
+        self.__load_team_a.setIcon(b_icon)
 
-        self.__load_team_b.setFixedSize(100, 24)
+        r_icon_path = (__ASSETS_DIR__ / 'red_dot.png').resolve().as_posix()
+        r_icon = QIcon(r_icon_path)
+        self.__load_team_b.setFixedSize(120, 30)
         self.__load_team_b.clicked.connect(self.load_team_b)
+        self.__load_team_b.setIcon(r_icon)
 
-        self.__swap_teams.setFixedSize(100, 24)
+        s_icon_path = (__ASSETS_DIR__ / 'switch_icon.png').resolve().as_posix()
+        s_icon = QIcon(s_icon_path)
+        self.__swap_teams.setFixedSize(100, 30)
         self.__swap_teams.clicked.connect(self.swap_teams)
+        self.__swap_teams.setIcon(s_icon)
 
         self.__buttons_layout.addWidget(self.open_button)
+        self.__buttons_layout.addWidget(self.__swap_teams, stretch=0)
         self.__buttons_layout.addWidget(self.__load_team_a, stretch=0)
         self.__buttons_layout.addWidget(self.__load_team_b, stretch=0)
-        self.__buttons_layout.addWidget(self.__swap_teams, stretch=0)
+        
         self.__buttons_layout.setSpacing(0)
         self.__buttons_layout.setAlignment(Qt.AlignLeft)
 
@@ -183,6 +195,7 @@ class MainWindow(QMainWindow):
                             border:1px solid black;
                            }"""
                         )
+    
         self.t_layout.addLayout(self.__buttons_layout)
         self.t_layout.addWidget(self.__match_view_w)
         self.__track_tab.setLayout(self.t_layout)
