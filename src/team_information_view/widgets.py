@@ -17,6 +17,8 @@ class SvgManipulator(QWidget):
         super().__init__(parent)
         self.svg_path = (__ASSETS_DIR__ / 'jersey.svg').resolve().as_posix()
 
+        self.__width = 80
+        self.__height = 40
         # Load SVG content into QDomDocument
         self.dom_document = QDomDocument()
         with open(self.svg_path, 'r') as f:
@@ -53,27 +55,26 @@ class SvgManipulator(QWidget):
         self.label = QLabel()
         layout.addWidget(self.label)
         # Render the SVG to a QPixmap and display it
-        pixmap = QPixmap(80, 40)  # Specify the desired size
+        pixmap = QPixmap(self.__width, self.__height)  # Specify the desired size
         pixmap.fill(Qt.transparent)  # Ensure the background is transparent
         painter = QPainter(pixmap)
         self.renderer.render(painter)
         painter.end()
         self.label.setPixmap(pixmap)
         self.setLayout(layout)
-
         self.setObjectName("jersey-widget")
-        self.setStyleSheet("""
-                    #jersey-widget{
-                        border:1px solid black;   
 
-                    }
-            """)
-        
+
+    def setFixedSize(self, w:int, h:int)->None:
+        self.__width = int(w*0.9)
+        self.__height = int(h*0.9)
+        super().setFixedSize(w, h)    
+    
     def rerender(self)->None:
         del self.renderer
         self.renderer = QSvgRenderer(self.dom_document.toByteArray())
         # Render the SVG to a QPixmap and display it
-        pixmap = QPixmap(80, 40)  # Specify the desired size
+        pixmap = QPixmap(self.__width, self.__height)  # Specify the desired size
         pixmap.fill(Qt.transparent)  # Ensure the background is transparent
         painter = QPainter(pixmap)
         self.renderer.render(painter)

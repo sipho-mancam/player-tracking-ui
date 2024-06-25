@@ -6,8 +6,9 @@ from camera.camera_ui import CameraWidget
 from camera.controller import CamerasManager
 from tracking_interface import PlayerIDAssociationApp
 from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, FormationManagerView
-from team_information_view.controller import MatchController
+from team_information_view.controller import MatchController, DataAssociationsController
 from cfg.paths_config import __ASSETS_DIR__
+
 
 
 class MainWindow(QMainWindow):
@@ -45,6 +46,7 @@ class MainWindow(QMainWindow):
         self.__swap_teams = None
         self.__match_controller = None
         self.__formations_view = None
+        self.__data_associations_controller = None
         
         self.init_pages()
         self.init_menue()
@@ -58,6 +60,9 @@ class MainWindow(QMainWindow):
             self.__match_view_w.set_match_controller(self.__match_controller)
             self.__match_controller.set_start_button(self.open_button)
             self.open_button.setEnabled(self.__match_controller.is_match_init())
+
+    def set_data_associations_controller(self, da_c)->None:
+        self.__data_associations_controller = da_c
            
     def init_menue(self)->None:
         # Create a menu bar
@@ -204,6 +209,8 @@ class MainWindow(QMainWindow):
         self.__tracking_window = PlayerIDAssociationApp(self.__match_controller, self.parentWidget())
         self.__tracking_window.show()
         self.open_button.setDisabled(True)
+        if self.__data_associations_controller is not None:
+            self.__tracking_window.set_data_controller(self.__data_associations_controller)
     
     def closeEvent(self, event)->None:
         if self.__tracking_window is not None:
@@ -215,7 +222,13 @@ if __name__ == "__main__":
     main_window = MainWindow()
     cameras_manager = CamerasManager(main_window.get_camera_widgets())
     match_controller = MatchController()
+    da_controller = DataAssociationsController()
+    
+    da_controller.set_match_controller(match_controller)
     main_window.set_match_controller(match_controller)
+    main_window.set_data_associations_controller(da_controller)
+    
     main_window.show()
     app.exec_()
     cameras_manager.stop()
+    da_controller.stop()

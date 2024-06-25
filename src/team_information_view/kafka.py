@@ -24,6 +24,7 @@ class KConsumer:
         self.__data_queue = [] # for all data
         self.__tracking_data_queue = []
         self.__clear_to_leave = Event()
+        self.__topics = set()
         self.__init()
 
     def toggle_offsetReset(self):
@@ -51,6 +52,7 @@ class KConsumer:
                     print("ERROR: %s".format(msg.error()))
                 else:
                     message = msg.value().decode('utf-8')
+                    # print(message)
                     self.__data_queue.append(message)
                     self.__tracking_data_queue.append(message)
                     if len(self.__tracking_data_queue) > 5:
@@ -83,7 +85,8 @@ class KConsumer:
 
 
     def subscribe(self, topic):
-        self.__consumer.subscribe([topic], on_assign=reset_offset)
+        self.__topics.add(topic)
+        self.__consumer.subscribe(list(self.__topics), on_assign=reset_offset)
 
     def waitForEvent(self):
         # this method will signal the main thread of data arrival for update
@@ -100,6 +103,7 @@ class KConsumer:
         data_piece = self.__tracking_data_queue.pop(0)
         if as_json:
             data_piece = json.loads(data_piece)
+        self.__data_event.clear()
         return data_piece
     
 

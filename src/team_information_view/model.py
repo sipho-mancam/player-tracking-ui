@@ -1,7 +1,9 @@
 from pathlib import Path
 import json
 import os
-from cfg.paths_config import __TEAMS_DIR__
+from cfg.paths_config import __TEAMS_DIR__ , __KAFKA_CONFIG__
+from .kafka import KConsumer, KProducer
+from PyQt5.QtCore import QTimer
 
 
 class FormationModel:
@@ -130,8 +132,12 @@ class PlayerInfoModel:
         self.__player_data['track_id'] = self.__track_id
         return self.__player_data
     
+    def set_jersey_number(self, number)->None:
+        self.__jersey_number = number
+
     def get_position(self)->str:
         return self.__position
+    
 
 
 class TeamModel:
@@ -168,7 +174,7 @@ class TeamModel:
         self.__formation = FormationModel(FormationModel.load_from_disk(self.__formation_name))
         self.__starting_line_up = data['players']
         self.__subs = data['subs']
-        
+        self.update_players(self.__starting_line_up)
         if self.__is_init:
             self.write_to_disk()
 
@@ -191,7 +197,11 @@ class TeamModel:
         return os.path.exists(__path)
     
     def update_players(self, player_info:list[dict])->None:
-        pass
+        for player in player_info:
+            for p in self.__players:
+                if p.get_position() == player.get('position'):
+                    p.set_jersey_number(player.get('jersey_number'))
+                    break;
 
     def get_team_info(self)->dict:
         self.__team_data['players'] = []
@@ -251,4 +261,34 @@ class MatchModel:
 
 class TrackingDataModel:
     def __init__(self)->None:
-        pass
+        self.__kafka_consumer = KConsumer(__KAFKA_CONFIG__)
+        self.__kafka_producer = KProducer(__KAFKA_CONFIG__)
+        self.__tracking_data_current_state = {}
+        self.__timer = QTimer()
+
+        self.init()
+
+    def init(self)->None:
+        self.__kafka_consumer.subscribe('ui-data')
+        self.__kafka_consumer.start()
+        # self.__timer.setInterval(50)
+        # self.__timer.timeout.connect(self.update)
+        # self.__timer.start()
+
+    def is_data_ready(self)->bool:
+        return self.__kafka_consumer.is_data_ready()
+    
+    def get_data(self)->None:
+        return self.__kafka_consumer.getTrackingData(True)
+
+    def update(self)->None:
+        if self.__kafka_consumer.is_data_ready():
+            print(self.__kafka_consumer.getTrackingData())
+        # else:
+        #     print("Waiting ....")
+    def stop(self)->None:
+        self.__kafka_consumer.stop()
+        self.__timer.stop()
+
+    def publish_data(self, data:dict)->None:
+        self.__kafka_producer.send_message('viz-data', json.dumps(data))

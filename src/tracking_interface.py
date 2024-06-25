@@ -6,8 +6,9 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QGridLa
 from PyQt5.QtGui import QImage, QPixmap, QColor
 from PyQt5.QtCore import Qt, QTimer
 from threading import Thread, Event 
-from kafka import KConsumer, KProducer
+from team_information_view.kafka import KConsumer, KProducer
 from cfg.paths_config import __MINI_MAP_BG__, __TEAMS_DIR__
+from team_information_view.widgets import SvgManipulator
 from pprint import pprint
 import math
 import json
@@ -349,6 +350,38 @@ class SaveFormation(QDialog):
         self.setLayout(layout)
 
 
+class RoundButton(QPushButton):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.__id_text = text
+        self.setFixedSize(40, 40)
+        self.__radius = int(self.width()/2)
+        self.setObjectName("round-button-1")
+        self.setStyleSheet(f"""
+                    #round-button-1{{
+                        border-style: outset;
+                        background-color:#0000ff;
+                        border-radius:20;
+                        color:#ffffff;
+                    }}
+                    #round-button-1:pressed{{
+                        background-color: #ffffff;
+                        color:#000000; 
+                    }}
+                    """)
+        self.__is_activated = False
+        self.__id_click_cb = None
+
+    def registerBtnClickHandler(self, cb)->None:
+        self.__id_click_cb = cb
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            if self.__id_click_cb is not None:
+                self.__id_click_cb(*(int(self.__id_text),))
+        super().mousePressEvent(event)
+
+
 class PlayerIDAssociationApp(QWidget):
     def __init__(self, match_controller:MatchController, parent=None):
         super().__init__(parent)
@@ -356,38 +389,26 @@ class PlayerIDAssociationApp(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
         self.__frame = None
-        self.__kafka_consumer = None
+    
         self.__tracking_data = TrackingData()
-        self.__kafka_producer = None
-        # self.__team_sheets = None
-        # self.__formations_manager = FormationsManager()
         self.__init_associations = False
-
         self.__match_controller = match_controller
         self.__match_data = None
-          # Main layout
+
         self.main_layout = QVBoxLayout()
-        # Left grid layout
         self.top_bar = QHBoxLayout()
         self.middle_layout = QHBoxLayout()
         self.bottom_layout = QHBoxLayout()
         self.__teams_buttons = []
         self.__teams_widgets = []
+        self.__ids_grid_buttons = []
         # self.read_team_sheets()
         self.initUI()
         self.__match_controller.set_player_tracking_interface(self)
+        self.__data_controller = None
 
-    def setKafkaConsumer(self, kafka_consumer:KConsumer)->None:
-        self.__kafka_consumer = kafka_consumer
-
-    def setKafkaProducer(self, producer)->None:
-        self.__kafka_producer = producer
-        self.__tracking_data.set_kafka_producer(producer)
-
-    def read_team_sheets(self)->None:
-        with open((__TEAMS_DIR__ / Path(r'teams.json')).resolve()) as fp:
-            data = json.load(fp)
-            self.__team_sheets = data
+    def set_data_controller(self, data_controller)->None:
+        self.__data_controller = data_controller
 
     def init_associations(self)->None:
         # if not self.__init_associations
@@ -398,6 +419,12 @@ class PlayerIDAssociationApp(QWidget):
         team_data = self.__match_controller.get_team_data(left)
         players = team_data.get('players')
         current_index = 0 if left else 1
+
+        jersey_icon = SvgManipulator(0, team_data['color'])
+        jersey_icon.setFixedSize(180, 100)
+        jersey_icon.rerender()
+
+        self.__teams_widgets[current_index]['jersey_icon'] = jersey_icon
 
         left_vertical_layout = QVBoxLayout()
         left_grid = QGridLayout()
@@ -428,12 +455,36 @@ class PlayerIDAssociationApp(QWidget):
         left_grid.addWidget(team_a_text, 4, 0, 1, 3)
         left_vertical_layout.addLayout(left_grid)
         left_vertical_layout.setAlignment(Qt.AlignTop)
+
+        if left:
+            self.bottom_layout.addWidget(jersey_icon)
+
         self.bottom_layout.addLayout(left_vertical_layout)
+
+        if not left:
+            self.bottom_layout.addWidget(jersey_icon)
+
+    def id_click_handler(self, id)->None:
+        print(id)
+
+    def init_ids_grid(self, count=30)->None:
+        self.__ids_grid = QGridLayout()
+        for i in range(count):
+            row, col = divmod(i, 6)
+            btn = RoundButton(f"{i}")
+            btn.registerBtnClickHandler(self.id_click_handler)
+            self.__ids_grid_buttons.append(btn)
+            self.__ids_grid.addWidget(btn, row, col)
+        
+        self.bottom_layout.addLayout(self.__ids_grid)
 
     def update_match_info(self, match_info:list)->None:
         self.__match_data = match_info
         for idx, team in enumerate(match_info):
             self.__teams_widgets[idx]['team_name'].setText(team.get('name'))
+            self.__teams_widgets[idx]['jersey_icon'].set_color(team.get('color'))
+            self.__teams_widgets[idx]['jersey_icon'].rerender()
+
             for player in team['players']:
                 # find the button associated with this player
                 id = player.get('jersey_number')
@@ -471,6 +522,10 @@ class PlayerIDAssociationApp(QWidget):
 
         # Initialize team A (Left Team)
         self.init_team(True)
+
+        # Initialize IDs grid
+        self.init_ids_grid()
+
         #Initialize Team B (Right Team)
         self.init_team(False)
 
@@ -512,30 +567,15 @@ class PlayerIDAssociationApp(QWidget):
         frame = self.__frame.copy()
         if frame is None:
             return
-    
-        frame = self.render_team(frame, self.__match_controller.get_team_data(True))
-        frame = self.render_team(frame, self.__match_controller.get_team_data(False))
-        # self.__kafka_consumer is not None
-        # if self.__kafka_consumer.is_data_ready():
-        #     tracking_data = self.__kafka_consumer.getTrackingData(as_json=True)
-        #     if tracking_data and  'tracks' in tracking_data:
-        #         self.__tracking_data.update(tracking_data['tracks'], self.__init_associations)
-        #         self.__tracking_data.publish()
-        #         self.__init_associations = False
-        #     self.update_mini_map(frame, self.__tracking_data.get_data())
+        # frame = self.render_team(frame, self.__match_controller.get_team_data(True))
+        # frame = self.render_team(frame, self.__match_controller.get_team_data(False))
 
+        if self.__data_controller is not None:
+            frame = self.render_team(frame, {'players':self.__data_controller.get_current_state(), 'color':'#0000ff'})
         height, width, channel = frame.shape
         bytes_per_line = 3 * width
         q_img = QImage(frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
         self.image_label.setPixmap(QPixmap.fromImage(q_img))
-
-
-    # def open_video_dialog(self):
-    #     options = QFileDialog.Options()
-    #     options |= QFileDialog.ReadOnly
-    #     video_path, _ = QFileDialog.getOpenFileName(self, "Open Video File", "", "Video Files (*.mp4 *.avi *.mov);;All Files (*)", options=options)
-    #     if video_path:
-    #         self.start_video(video_path)
 
     def start_updates_timer(self):
         self.timer.start(50)  # Update every 30 ms (approx 33 FPS)

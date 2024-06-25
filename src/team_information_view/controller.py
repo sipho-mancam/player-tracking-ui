@@ -1,5 +1,8 @@
 from .model import TeamModel
-from .model import FormationsModel, MatchModel
+from .model import FormationsModel, MatchModel, TrackingDataModel
+
+from PyQt5.QtCore import QTimer
+from pprint import pprint
 
 class FormationsController:
     def __init__(self)->None:
@@ -131,5 +134,92 @@ class MatchController:
         
     def set_start_button(self, start_button)->None:
         self.__start_button = start_button
+
+
+class StateGenerator:
+    def __init__(self, match_controller, tracking_model)->None:
+        self.state = []
+        self.__match_controller = match_controller
+        self.__tracking_model = tracking_model
+
+    def generate(self)->list[dict]:
+        pass
+
+class DataAssociationsController:
+    '''
+    This class combines the Tracking Data coming in from the Tracking Core
+    along with the player data that already exist from the UI side and presents a unified 
+    data set both to the UI update and going out to Kafka.
+    State Object is represented as follows:
+    [{
+        track_id:int,
+        coordinates: tuple|list[x_norm, y_norm],
+        jersey_number: int,
+        team: str, #Name of the team
+        color: (R:int, G:int, B:int),
+        options:{
+            alert: bool,
+            highlight: bool,
+            connect:{
+                state: bool,
+                neighbour:tuple|list[x_norm, y_norm],
+                id: int - Object ID we are connecting to.
+            }
+        }
+    }]
+    '''
+    def __init__(self)->None:
+        self.__tracking_model = TrackingDataModel()
+        self.__match_controller = None
+        self.__timer = QTimer()
+        self.__state_object = []
+
+        self.init()
+
+    def init(self)->None:
+        self.__timer.setInterval(20)
+        self.__timer.timeout.connect(self.update_state)
+        self.__timer.start()
+       
+    def set_match_controller(self, match_controller:MatchController)->None:
+        self.__match_controller = match_controller
+
+    def get_current_state(self)->dict:
+        return self.__state_object
+
+    def update_state(self)->None:
+        # This checks if we have new data that came in.
+        # Updates that data and performs associations
+        # update the current state object
+        # sends it to the UI as well as Publish it for
+        # other services to consume it.
+        
+        if self.__tracking_model.is_data_ready():
+            self.__state_object = []
+            tracking_data = self.__tracking_model.get_data()
+            # print(type(tracking_data))
+            if tracking_data is not None:
+                for elem in tracking_data['tracks']:
+                    self.__state_object.append({
+                            "track_id":elem.get('tracking-id'),
+                            "coordinates": elem.get('coordinates'),
+                            "jersey_number": elem.get('tracking-id'),
+                            "team": "untracked", #Name of the team
+                            "color": tuple([0, 0, 255]),
+                            "options":{
+                                "alert": False,
+                                "highlight": False,
+                                "connect":{
+                                    "state": False,
+                                    "neighbour":None,
+                                    "id": None
+                                }
+                            }
+                        })
+
+    def stop(self)->None:
+        self.__tracking_model.stop()
+        self.__timer.stop()
+
 
 

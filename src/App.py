@@ -1,4 +1,4 @@
-from kafka import KConsumer, KProducer
+from team_information_view.kafka import KConsumer, KProducer
 from cfg.paths_config import __KAFKA_CONFIG__
 from tracking_interface import QApplication, PlayerIDAssociationApp
 import sys
