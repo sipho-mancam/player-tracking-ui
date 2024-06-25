@@ -356,15 +356,15 @@ class RoundButton(QPushButton):
         self.__id_text = text
         self.setFixedSize(40, 40)
         self.__radius = int(self.width()/2)
-        self.setObjectName("round-button-1")
+        self.setObjectName(f"round-button-{self.__id_text}")
         self.setStyleSheet(f"""
-                    #round-button-1{{
+                    #round-button-{self.__id_text}{{
                         border-style: outset;
                         background-color:#0000ff;
                         border-radius:20;
                         color:#ffffff;
                     }}
-                    #round-button-1:pressed{{
+                    #round-button-{self.__id_text}:pressed{{
                         background-color: #ffffff;
                         color:#000000; 
                     }}
@@ -380,6 +380,25 @@ class RoundButton(QPushButton):
             if self.__id_click_cb is not None:
                 self.__id_click_cb(*(int(self.__id_text),))
         super().mousePressEvent(event)
+
+    def set_color(self, color)->None:
+        self.setStyleSheet(
+            f"""
+                #round-button-{self.__id_text}{{
+                    border-style: outset;
+                    border-radius:20;
+                    color:#ffffff;
+                    background-color:{color};
+                }}
+                #round-button-{self.__id_text}:pressed{{
+                    background-color:#ffffff;
+                    color:#000000;
+                 
+                }}"""
+            )
+    
+    def get_id(self)->int:
+        return int(self.__id_text)
 
 
 class PlayerIDAssociationApp(QWidget):
@@ -402,6 +421,8 @@ class PlayerIDAssociationApp(QWidget):
         self.__teams_buttons = []
         self.__teams_widgets = []
         self.__ids_grid_buttons = []
+        self.__default_button_color = 'blue'
+        self.__current_pressed_id = None
         # self.read_team_sheets()
         self.initUI()
         self.__match_controller.set_player_tracking_interface(self)
@@ -411,7 +432,6 @@ class PlayerIDAssociationApp(QWidget):
         self.__data_controller = data_controller
 
     def init_associations(self)->None:
-        # if not self.__init_associations
         self.__init_associations = True
 
     def init_team(self, left:bool)->None:
@@ -443,7 +463,7 @@ class PlayerIDAssociationApp(QWidget):
             row, col = divmod(i, 3)
             left_grid.addWidget(btn, row, col)
         
-        team_a_text = QLabel(team_data.get("name"), self)
+        team_a_text = QLabel(team_data.get("name"))
         self.__teams_widgets[current_index]['team_name'] = team_a_text
         
         team_a_text.setStyleSheet(""" 
@@ -452,7 +472,21 @@ class PlayerIDAssociationApp(QWidget):
                                   font-size:20px;
                                 }
                                 """)
-        left_grid.addWidget(team_a_text, 4, 0, 1, 3)
+        left_grid.addWidget(team_a_text, 4, 0, 1, 2)
+       
+        formations_text  = QLabel(team_data.get('formation'))
+        formations_text.setStyleSheet(""" 
+                                QLabel {
+                                  font-weight:500;
+                                  font-size:20px;
+                                }
+                                """)
+        formations_text.setFixedSize(100, 40)
+        formations_text.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+
+        self.__teams_widgets[current_index]['formation_text'] = formations_text
+
+        left_grid.addWidget(formations_text ,4, 2 , 1, 1)
         left_vertical_layout.addLayout(left_grid)
         left_vertical_layout.setAlignment(Qt.AlignTop)
 
@@ -465,7 +499,15 @@ class PlayerIDAssociationApp(QWidget):
             self.bottom_layout.addWidget(jersey_icon)
 
     def id_click_handler(self, id)->None:
-        print(id)
+        if self.__current_pressed_id is None:
+            self.__current_pressed_id = id
+        else:
+            self.__ids_grid_buttons[self.__current_pressed_id].set_color(self.__default_button_color)
+            self.__current_pressed_id = id
+
+        btn = self.__ids_grid_buttons[id]
+        btn.set_color("red");
+
 
     def init_ids_grid(self, count=30)->None:
         self.__ids_grid = QGridLayout()
@@ -475,7 +517,7 @@ class PlayerIDAssociationApp(QWidget):
             btn.registerBtnClickHandler(self.id_click_handler)
             self.__ids_grid_buttons.append(btn)
             self.__ids_grid.addWidget(btn, row, col)
-        
+        self.__ids_grid.setContentsMargins(20, 0, 20, 0)
         self.bottom_layout.addLayout(self.__ids_grid)
 
     def update_match_info(self, match_info:list)->None:
@@ -484,6 +526,7 @@ class PlayerIDAssociationApp(QWidget):
             self.__teams_widgets[idx]['team_name'].setText(team.get('name'))
             self.__teams_widgets[idx]['jersey_icon'].set_color(team.get('color'))
             self.__teams_widgets[idx]['jersey_icon'].rerender()
+            self.__teams_widgets[idx]['formation_text'].setText(team.get('formation'))
 
             for player in team['players']:
                 # find the button associated with this player
@@ -571,7 +614,7 @@ class PlayerIDAssociationApp(QWidget):
         # frame = self.render_team(frame, self.__match_controller.get_team_data(False))
 
         if self.__data_controller is not None:
-            frame = self.render_team(frame, {'players':self.__data_controller.get_current_state(), 'color':'#0000ff'})
+            frame = self.render_track_objects(frame, self.__data_controller.get_current_state())
         height, width, channel = frame.shape
         bytes_per_line = 3 * width
         q_img = QImage(frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
@@ -608,7 +651,34 @@ class PlayerIDAssociationApp(QWidget):
                     point2 = c.get('next_link')
                     frame = self.draw_connection_line(frame, point1, point2, offsets, dimensions)
         return frame
+
+    def render_track_objects(self, frame, track_objects:list[dict])->None:
+        width = 0.89 * frame.shape[1] 
+        height = 0.895 * frame.shape[0]
+        clone_bg = frame
+        x_offset = 140//2
+        y_offset = 85//2
+
     
+        for _, det in enumerate(track_objects):
+            coord = det['coordinates'] 
+            if coord is not None :
+                x_scaled = x_offset + int(coord[0]*width)
+                y_scaled = y_offset + int(coord[1]*height)
+                det['ui_coordinates'] = (x_scaled, y_scaled)
+
+                clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 15,  det.get('color'), cv2.FILLED)
+
+                if det.get('jersey_number') is not None:
+                    if det.get('highlight') == 1:
+                        text_color = (255, 0, 0)
+                    else:
+                        text_color = (255, 255, 255)
+
+                    clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+        return clone_bg
+
+
     def render_team(self, frame, team_info)->None:
         width = 0.89 * frame.shape[1] 
         height = 0.895 * frame.shape[0]

@@ -9,8 +9,6 @@ from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, Forma
 from team_information_view.controller import MatchController, DataAssociationsController
 from cfg.paths_config import __ASSETS_DIR__
 
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -220,6 +218,7 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_window = MainWindow()
+    
     cameras_manager = CamerasManager(main_window.get_camera_widgets())
     match_controller = MatchController()
     da_controller = DataAssociationsController()
@@ -227,7 +226,7 @@ if __name__ == "__main__":
     da_controller.set_match_controller(match_controller)
     main_window.set_match_controller(match_controller)
     main_window.set_data_associations_controller(da_controller)
-    
+
     main_window.show()
     app.exec_()
     cameras_manager.stop()

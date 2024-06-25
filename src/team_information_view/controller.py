@@ -199,13 +199,13 @@ class DataAssociationsController:
             tracking_data = self.__tracking_model.get_data()
             # print(type(tracking_data))
             if tracking_data is not None:
-                for elem in tracking_data['tracks']:
+                for i , elem in enumerate(tracking_data['tracks']):
                     self.__state_object.append({
                             "track_id":elem.get('tracking-id'),
                             "coordinates": elem.get('coordinates'),
                             "jersey_number": elem.get('tracking-id'),
                             "team": "untracked", #Name of the team
-                            "color": tuple([0, 0, 255]),
+                            "color": tuple([255, 0, 0]) if elem.get('tracking-id') % 2 == 0  else tuple([0, 0, 255]),
                             "options":{
                                 "alert": False,
                                 "highlight": False,
