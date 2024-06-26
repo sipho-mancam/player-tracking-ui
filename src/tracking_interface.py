@@ -1,21 +1,14 @@
 import sys
 import cv2
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QGridLayout, 
-                             QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QFrame,
+                             QVBoxLayout, QHBoxLayout,
                              QDialog, QDialogButtonBox, QComboBox, QLineEdit)
 from PyQt5.QtGui import QImage, QPixmap, QColor
 from PyQt5.QtCore import Qt, QTimer
-from threading import Thread, Event 
-from team_information_view.kafka import KConsumer, KProducer
 from cfg.paths_config import __MINI_MAP_BG__, __TEAMS_DIR__
 from team_information_view.widgets import SvgManipulator
 from pprint import pprint
-import math
-import json
-from pathlib import Path
-from team_states import TeamsManager
-from formations import FormationsManager
-from team_information_view.controller import MatchController
+from team_information_view.controller import MatchController, StateGenerator, DataAssociationsController
 
 class ClickableLabel(QLabel):
     def __init__(self, parent=None):
@@ -109,11 +102,20 @@ class ButtonWithID(QPushButton):
                         background: #aaa;
                     }
                 """)
+        
+    def set_color(self, color:str)->None:
+        self.__id['color'] = color
+
     def registerCallback(self, bt_callback)->None:
         self.__button_click_callback = bt_callback
     
     def button_clicked(self)->None:
-        self.__button_click_callback(*(self.__id,))
+        player = self.__id.get('player')
+        clr = QColor(self.__id.get('color'))
+        clr = (clr.red(), clr.green(), clr.blue())
+        player['color'] = clr
+        player['team'] = self.__id.get('team')
+        self.__button_click_callback(*(player,))
 
     def get_button_id(self)->int:
         return self.__id
@@ -130,155 +132,6 @@ class ButtonWithID(QPushButton):
         self.__id['jersery_number'] = id
         self.setText(f"{self.__id['position']} -  {id}")
         
-class TrackingData:
-    def __init__(self)->None:
-        self.__tracking_data = []
-        self.__clicked_object = None
-        self.__current_clicked_id = None
-        self.__associations_table = {}
-        self.__kafka_producer = None
-        self.__teams_manager = None
-        self.__frame_counter = 0
-        self.__players_highlighted = {}
-        self.__toggle_connections = False
-        self.__toggle_highlight = False
-        self.__connections_list = []
-
-    def get_teams_manager(self)->TeamsManager:
-        return self.__teams_manager
-    
-    def set_formations_data(self, formations_data:list, team:int)->None:
-        data = []
-        obj = {}
-
-        for i, coord in enumerate(formations_data):
-            obj['coordinates'] = coord
-            obj['tracking-id'] = i + team*12
-            data.append(obj)
-            obj = {}
-        self.__tracking_data = data
-
-    def update(self, data, associate=False)->None:
-        if data is not None:
-            self.__tracking_data = data
-
-            if associate and not self.__teams_manager.is_associations_init():
-                # Perform associations here 
-                self.__teams_manager.perform_associations(self.__tracking_data)
-
-            for det in self.__tracking_data:
-                if det.get('tracking-id') == self.__current_clicked_id:
-                    det['clicked'] = True
-
-                if det.get('tracking-id') in self.__associations_table:
-                    id_struct = self.__associations_table[det.get('tracking-id')]
-                    det['player-id'] = id_struct.get('id')
-                    det['team'] = id_struct.get('team')
-
-                    player = self.__players_highlighted.get(det.get('player-id'))
-                    if player is not None and det.get('team') == player['team']:
-                        det['highlight'] = player['id']
-            
-            self.update_connections_list(self.__tracking_data)
-            self.update_connections_links()
-
-            self.__frame_counter += 1
-            if self.__teams_manager is not None:
-                self.__teams_manager.update_team(self.__tracking_data)
-
-    def update_connections_list(self, dets)->None:
-        for det in dets:
-            for connection in self.__connections_list:
-                if det.get('player-id') is not None and connection.get('player-id') == det.get('player-id') and connection.get('team') == det.get('team'):
-                    connection['coordinates'] = det['coordinates']
-                    break;
-    
-    def update_connections_links(self)->None:
-        for idx, connection in enumerate(self.__connections_list):
-            if idx > 0:
-                connection['next_link'] = self.__connections_list[idx-1].get('coordinates')
-    
-    def set_kafka_producer(self, producer:KProducer)->None:
-        self.__kafka_producer = producer
-
-    def set_teams_manager(self, teams_man:TeamsManager)->None:
-        self.__teams_manager = teams_man
-
-    def publish(self)->None:
-        if self.__kafka_producer is not None:
-            json_string = json.dumps({'tracks':self.__teams_manager.get_tracking_data(), 'frame_number':self.__frame_counter})
-            self.__kafka_producer.send_message('system-data', json_string)    
-
-    def eucliden_distance(self, point1:tuple, point2:tuple)->float:
-        return math.sqrt(((point1[0]-point2[0])**2) + ((point1[1] - point2[1])**2))
-
-    def get_clicked(self, x, y)->dict|None:
-        for det in self.__tracking_data:
-            if self.eucliden_distance(tuple(det.get('ui_coordinates')), (x,y)) <= 20:
-                self.__clicked_object = det
-                self.__current_clicked_id = det.get('tracking-id')
-                
-                if self.__toggle_highlight and det.get('player-id') and (det.get('highlight') == 0 or det.get('highlight') is None):
-                    det['highlight'] = 1
-
-                elif self.__toggle_highlight and (det.get('player-id') and det.get('highlight') == 1):
-                    det['highlight'] = 0
-                
-                if det.get('player-id'):
-                     self.__players_highlighted[det.get('player-id')]  =  {'id':det.get('highlight'), 'team':det.get('team')}
-                det['clicked'] = True
-
-                # Do the connections here
-                if self.__toggle_connections and det.get('player-id'):
-                    # You are connected, I'm clearing it.
-                    idx = self.find_connected(det)
-                    if idx >= 0:
-                        self.__connections_list.pop(idx)
-                        continue
-
-                    # This assumes you are currently not connected
-                    det['connected'] = self.__toggle_connections
-                    det['next_link'] = self.__connections_list[-1].get('coordinates') if len(self.__connections_list) > 0 else det.get('coordinates')
-                    self.__connections_list.append(det)
-                         
-        for det in self.__tracking_data:
-            if 'clicked' in det and self.__clicked_object.get('tracking-id') != det.get('tracking-id'):
-                det['clicked'] = False
-
-    def find_connected(self, det)->int:
-        for idx, con in enumerate(self.__connections_list):
-            if con.get('player-id') == det.get('player-id') and con.get('team') == det.get('team'):
-                return idx
-        return -1
-
-    def get_data(self)->dict:
-        return self.__tracking_data
-    
-    def assign_to_player_to_id(self, id:dict)->None:
-        for det in self.__tracking_data:
-            if det.get('clicked'):
-                det['player-id'] = id.get('id')
-                det['team'] = id.get('team')
-                self.__associations_table[det.get('tracking-id')] = id
-                self.__current_clicked_id = -1
-
-    def search_id(self, id:dict)->str:
-        for key in self.__associations_table.keys():
-            t_id = self.__associations_table[key]
-            if (t_id.get('id') is not None) and t_id.get('id') == id.get('id') and (t_id.get('team') is not None) and id.get('team') == t_id.get('team'):
-                return key
-
-    def get_connections_list(self)->list|None:
-        if len(self.__connections_list) <= 1:
-            return None
-        return self.__connections_list
-
-    def toggle_connections(self)->None:
-        self.__toggle_connections = not self.__toggle_connections
-        self.__connections_list = []
-
-    def toggle_highlight(self)->None:
-        self.__toggle_highlight = not self.__toggle_highlight
       
 class CustomDialog(QDialog):
     def __init__(self, formationsList:list[str], parent=None):
@@ -402,6 +255,15 @@ class RoundButton(QPushButton):
 
 
 class PlayerIDAssociationApp(QWidget):
+    COLOR_TABLE = {
+        "clicked":(255, 0, 0),
+        "alert":(255, 255, 0),
+        "highlight":(125, 255, 0)
+    }
+    ALERT_COLOR = "alert"
+    CLICKED_COLOR = "clicked"
+    HIGHLIGHT_COLOR = "highlight"
+
     def __init__(self, match_controller:MatchController, parent=None):
         super().__init__(parent)
         self.cap = None
@@ -409,11 +271,8 @@ class PlayerIDAssociationApp(QWidget):
         self.timer.timeout.connect(self.update)
         self.__frame = None
     
-        self.__tracking_data = TrackingData()
-        self.__init_associations = False
         self.__match_controller = match_controller
-        self.__match_data = None
-
+       
         self.main_layout = QVBoxLayout()
         self.top_bar = QHBoxLayout()
         self.middle_layout = QHBoxLayout()
@@ -423,12 +282,13 @@ class PlayerIDAssociationApp(QWidget):
         self.__ids_grid_buttons = []
         self.__default_button_color = 'blue'
         self.__current_pressed_id = None
-        # self.read_team_sheets()
+
         self.initUI()
         self.__match_controller.set_player_tracking_interface(self)
         self.__data_controller = None
 
-    def set_data_controller(self, data_controller)->None:
+    
+    def set_data_controller(self, data_controller:DataAssociationsController)->None:
         self.__data_controller = data_controller
 
     def init_associations(self)->None:
@@ -450,7 +310,8 @@ class PlayerIDAssociationApp(QWidget):
         left_grid = QGridLayout()
       
         self.buttons = [ButtonWithID(f'{player.get("position")}  - {player.get("jersey_number")}', 
-                                     {'id':int(player.get("jersey_number")), 'team':0 if left else 1, 'position':player.get("position")}, 
+                                     {'id':int(player.get("jersey_number")), 'team':team_data.get('name'), 'position':player.get("position"), 'color':team_data.get('color'), 
+                                      'player':player}, 
                                     self) for  player in players]
         
         self.__teams_buttons.insert(current_index, self.buttons)
@@ -458,7 +319,7 @@ class PlayerIDAssociationApp(QWidget):
         self.__teams_widgets[current_index]['buttons'] = self.buttons
 
         for i, btn in enumerate(self.buttons):
-            btn.registerCallback(self.__tracking_data.assign_to_player_to_id)
+            btn.registerCallback(self.associate_player_to_id)
             btn.clicked.connect(btn.button_clicked)
             row, col = divmod(i, 3)
             left_grid.addWidget(btn, row, col)
@@ -506,7 +367,14 @@ class PlayerIDAssociationApp(QWidget):
             self.__current_pressed_id = id
 
         btn = self.__ids_grid_buttons[id]
-        btn.set_color("red");
+        btn.set_color("red")
+        if self.__data_controller is not None:
+            self.__data_controller.update_click(id)
+    
+    def associate_player_to_id(self, player)->None:
+        if self.__current_pressed_id is not None:
+            self.__data_controller.associate_player(player, self.__current_pressed_id)
+            
 
 
     def init_ids_grid(self, count=30)->None:
@@ -527,6 +395,12 @@ class PlayerIDAssociationApp(QWidget):
             self.__teams_widgets[idx]['jersey_icon'].set_color(team.get('color'))
             self.__teams_widgets[idx]['jersey_icon'].rerender()
             self.__teams_widgets[idx]['formation_text'].setText(team.get('formation'))
+            
+            if self.__data_controller is not None:
+                self.__data_controller.update_team_color(team.get('color'))
+                
+            for button in self.__teams_widgets[idx]['buttons']:
+                button.set_color(team.get('color'))
 
             for player in team['players']:
                 # find the button associated with this player
@@ -538,7 +412,7 @@ class PlayerIDAssociationApp(QWidget):
     def init_top_bar(self)->None:
         self.connect_button = StyledButton('Connect Players', self)
         self.connect_button.clicked.connect(self.connect_button.toggle_color)
-        self.connect_button.clicked.connect(self.__tracking_data.toggle_connections)
+        # self.connect_button.clicked.connect(self.__tracking_data.toggle_connections)
 
         self.start_associations = StyledButton('Start Associations', self)        
         self.start_associations.clicked.connect(self.start_associations.toggle_color)
@@ -546,7 +420,7 @@ class PlayerIDAssociationApp(QWidget):
 
         self.highlight_button = StyledButton('Start Highlighting', self)
         self.highlight_button.clicked.connect(self.highlight_button.toggle_color)
-        self.highlight_button.clicked.connect(self.__tracking_data.toggle_highlight)
+        # self.highlight_button.clicked.connect(self.__tracking_data.toggle_highlight)
 
         self.top_bar.addWidget(self.start_associations)
         self.top_bar.addWidget(self.connect_button)
@@ -575,7 +449,7 @@ class PlayerIDAssociationApp(QWidget):
         # Image view
         self.image_label = ClickableLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.registerCallback(self.__tracking_data.get_clicked)
+        # self.image_label.registerCallback(self.__tracking_data.get_clicked)
         
         image_layout = QVBoxLayout()
         image_layout.addWidget(self.image_label)
@@ -667,6 +541,8 @@ class PlayerIDAssociationApp(QWidget):
                 y_scaled = y_offset + int(coord[1]*height)
                 det['ui_coordinates'] = (x_scaled, y_scaled)
 
+                if det.get('state') == StateGenerator.CLICKED:
+                    det['color'] = PlayerIDAssociationApp.COLOR_TABLE[PlayerIDAssociationApp.CLICKED_COLOR]
                 clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 15,  det.get('color'), cv2.FILLED)
 
                 if det.get('jersey_number') is not None:
@@ -687,8 +563,8 @@ class PlayerIDAssociationApp(QWidget):
         y_offset = 85//2
         color = team_info['color']
 
-        cr = QColor(color)
-        color = (cr.red(), cr.green(), cr.blue())
+        clr = QColor(color)
+        color = (clr.red(), clr.green(), clr.blue())
 
         for _, det in enumerate(team_info['players']):
             coord = det['coordinates'] 
@@ -704,8 +580,7 @@ class PlayerIDAssociationApp(QWidget):
                         text_color = (255, 0, 0)
                     else:
                         text_color = (255, 255, 255)
-
-                    clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled-5, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+                    clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
         return clone_bg
     
     def update_mini_map(self, frame:cv2.Mat, detections)->cv2.Mat:

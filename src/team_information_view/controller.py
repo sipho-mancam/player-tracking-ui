@@ -137,13 +137,104 @@ class MatchController:
 
 
 class StateGenerator:
-    def __init__(self, match_controller, tracking_model)->None:
+    UNASSOCIATED = 0
+    ASSOCIATED = 1
+    CLICKED = 2
+    def __init__(self, match_controller:MatchController, tracking_model:TrackingDataModel)->None:
         self.state = []
         self.__match_controller = match_controller
         self.__tracking_model = tracking_model
+        self.__associations_table = {} #  {id: player_object}
+        self.__current_clicked = -1
+        self.__default_color = (120, 120, 120)
+        self.__frames_count = 0
 
-    def generate(self)->list[dict]:
-        pass
+    def get_frames_count(self)->int:
+        return self.__frames_count
+
+    def associate(self, player:dict, id:int)->None:
+        self.__associations_table[id] = player
+        self.__current_clicked = -1
+
+    def update_clicked(self, id:int)->None:
+        self.__current_clicked = id
+
+    def update_team_color(self, team_name, color)->None:
+        for key in self.__associations_table.keys():
+            player = self.__associations_table[key]
+            if player.get('team') == team_name:
+                player['color'] = color
+
+    def generate_state(self)->list[dict]:
+        # First we find all the associated players and update their coordinates
+        '''
+        State Object is represented as follows:
+        [{
+            track_id:int,
+            coordinates: tuple|list[x_norm, y_norm],
+            jersey_number: int,
+            team: str, #Name of the team
+            color: (R:int, G:int, B:int),
+            options:{
+                alert: bool,
+                highlight: bool,
+                connect:{
+                    state: bool,
+                    neighbour:tuple|list[x_norm, y_norm],
+                    id: int - Object ID we are connecting to.
+                }
+            }
+        }]
+        '''
+        if self.__tracking_model.is_data_ready():
+            self.state = []
+            tracking_data = self.__tracking_model.get_data()['tracks']
+            # Associated Tracks and Players already found
+            for track in tracking_data:
+                id = track.get('tracking-id')
+                if id in self.__associations_table:
+                    player = self.__associations_table[id]
+                    self.state.append(self.__create_state_object(player, track))
+                else:
+                    # Create objects for unassociated state
+                    self.state.append(self.__create_default_state_object(track))
+
+            for obj in self.state:
+                id = obj.get('track_id')
+                if id == self.__current_clicked:
+                    obj['state'] = StateGenerator.CLICKED
+                    break
+
+        return self.state
+
+    def __create_default_state_object(self, track:dict)->None:
+        return {
+                    'track_id':track.get('tracking-id'),
+                    'coordinates': track.get('coordinates'),
+                    'jersey_number':track.get('tracking-id'),
+                    'team':'default',
+                    'color':self.__default_color, 
+                    'state':StateGenerator.UNASSOCIATED,
+                    'options':{
+                        'alert':False,
+                        'highlight':False,
+                }}
+
+
+    def __create_state_object(self, player:dict, track:dict)->None:
+        return {
+                    'track_id':track.get('tracking-id'),
+                    'coordinates': track.get('coordinates'),
+                    'jersey_number':player.get('jersey_number'),
+                    'team':player.get('team'),
+                    'color':player.get('color'), 
+                    'state': StateGenerator.ASSOCIATED,
+                    'options':{
+                        'alert':False,
+                        'highlight':False
+                }}
+
+    
 
 class DataAssociationsController:
     '''
@@ -172,8 +263,8 @@ class DataAssociationsController:
         self.__tracking_model = TrackingDataModel()
         self.__match_controller = None
         self.__timer = QTimer()
+        self.__state_generator = None
         self.__state_object = []
-
         self.init()
 
     def init(self)->None:
@@ -183,39 +274,25 @@ class DataAssociationsController:
        
     def set_match_controller(self, match_controller:MatchController)->None:
         self.__match_controller = match_controller
+        self.__state_generator = StateGenerator(self.__match_controller, self.__tracking_model)
 
     def get_current_state(self)->dict:
         return self.__state_object
+    
+    def associate_player(self, player, id)->None:
+        if self.__state_generator is not None:
+            self.__state_generator.associate(player, id)    
 
     def update_state(self)->None:
-        # This checks if we have new data that came in.
-        # Updates that data and performs associations
-        # update the current state object
-        # sends it to the UI as well as Publish it for
-        # other services to consume it.
-        
-        if self.__tracking_model.is_data_ready():
-            self.__state_object = []
-            tracking_data = self.__tracking_model.get_data()
-            # print(type(tracking_data))
-            if tracking_data is not None:
-                for i , elem in enumerate(tracking_data['tracks']):
-                    self.__state_object.append({
-                            "track_id":elem.get('tracking-id'),
-                            "coordinates": elem.get('coordinates'),
-                            "jersey_number": elem.get('tracking-id'),
-                            "team": "untracked", #Name of the team
-                            "color": tuple([255, 0, 0]) if elem.get('tracking-id') % 2 == 0  else tuple([0, 0, 255]),
-                            "options":{
-                                "alert": False,
-                                "highlight": False,
-                                "connect":{
-                                    "state": False,
-                                    "neighbour":None,
-                                    "id": None
-                                }
-                            }
-                        })
+        if self.__state_generator is not None:
+            self.__state_object = self.__state_generator.generate_state()
+
+    def update_click(self, id)->None:
+        if self.__state_generator is not None:
+            self.__state_generator.update_clicked(id)
+
+    def update_team_color(self, team_name:str, color:str)->None:
+        self.__state_generator.update_team_color(team_name, color)
 
     def stop(self)->None:
         self.__tracking_model.stop()
