@@ -153,6 +153,13 @@ class StateGenerator:
         return self.__frames_count
 
     def associate(self, player:dict, id:int)->None:
+        # Check if the player wasn't assigned before.
+        for key in self.__associations_table.keys():
+            p_l = self.__associations_table[key]
+            if (str(p_l.get('team'))+str(p_l.get('jersey_number'))) == str(player.get('team'))+str(player.get('jersey_number')):
+                self.__associations_table.pop(key, -1)
+                break;
+            
         self.__associations_table[id] = player
         self.__current_clicked = -1
 

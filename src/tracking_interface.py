@@ -389,6 +389,7 @@ class PlayerIDAssociationApp(QWidget):
         self.bottom_layout.addLayout(self.__ids_grid)
 
     def update_match_info(self, match_info:list)->None:
+        # This method updates the UI state everytime when the Match Controller is updated.
         self.__match_data = match_info
         for idx, team in enumerate(match_info):
             self.__teams_widgets[idx]['team_name'].setText(team.get('name'))
@@ -397,8 +398,9 @@ class PlayerIDAssociationApp(QWidget):
             self.__teams_widgets[idx]['formation_text'].setText(team.get('formation'))
             
             if self.__data_controller is not None:
-                self.__data_controller.update_team_color(team.get('color'))
-                
+                clr = QColor(team.get('color'))
+                self.__data_controller.update_team_color(team.get('name'),(clr.red(), clr.green(), clr.blue()))
+
             for button in self.__teams_widgets[idx]['buttons']:
                 button.set_color(team.get('color'))
 
@@ -543,6 +545,10 @@ class PlayerIDAssociationApp(QWidget):
 
                 if det.get('state') == StateGenerator.CLICKED:
                     det['color'] = PlayerIDAssociationApp.COLOR_TABLE[PlayerIDAssociationApp.CLICKED_COLOR]
+                
+                if det.get('state') == StateGenerator.ASSOCIATED:
+                    pass
+
                 clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 15,  det.get('color'), cv2.FILLED)
 
                 if det.get('jersey_number') is not None:
@@ -550,8 +556,11 @@ class PlayerIDAssociationApp(QWidget):
                         text_color = (255, 0, 0)
                     else:
                         text_color = (255, 255, 255)
+                    
+                    clone_bg = cv2.putText(clone_bg, f"{det.get('track_id')}", (x_scaled-10, y_scaled-20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
 
-                    clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+                    if det.get('state') == StateGenerator.ASSOCIATED:
+                        clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled-10, y_scaled+25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
         return clone_bg
 
 
