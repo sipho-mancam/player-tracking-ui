@@ -1,14 +1,15 @@
 import sys
 import cv2
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QGridLayout, 
-                             QVBoxLayout, QHBoxLayout,
-                             QDialog, QDialogButtonBox, QComboBox, QLineEdit)
+                             QVBoxLayout, QHBoxLayout)
+                            #  QDialog, QDialogButtonBox, QComboBox, QLineEdit)
 from PyQt5.QtGui import QImage, QPixmap, QColor
 from PyQt5.QtCore import Qt, QTimer
 from cfg.paths_config import __MINI_MAP_BG__, __TEAMS_DIR__
 from team_information_view.widgets import SvgManipulator
-from pprint import pprint
 from team_information_view.controller import MatchController, StateGenerator, DataAssociationsController
+
+from pprint import pprint
 
 class ClickableLabel(QLabel):
     def __init__(self, parent=None):
@@ -132,77 +133,6 @@ class ButtonWithID(QPushButton):
         self.__id['jersery_number'] = id
         self.setText(f"{self.__id['position']} -  {id}")
         
-      
-class CustomDialog(QDialog):
-    def __init__(self, formationsList:list[str], parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Add Formation")
-
-        # Dialog layout
-        layout = QVBoxLayout()
-        # ComboBox
-        self.combo_box = QComboBox()
-        new_list = [s for s in formationsList]
-        new_list.append("custom")
-        self.combo_box.addItems(new_list)
-        layout.addWidget(self.combo_box)
-
-        # OK and Cancel buttons
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        layout.addWidget(self.button_box)
-
-        self.setLayout(layout)
-
-    def get_selected_option(self):
-        return self.combo_box.currentText()
-
-
-class AddFormation(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Add Formation")
-
-        # Dialog layout
-        layout = QVBoxLayout()
-        # ComboBox
-        self.formation_name = QLineEdit(self)
-        self.formation_name.setPlaceholderText('4-4-2')
-        layout.addWidget(self.formation_name)
-
-        # OK and Cancel buttons
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        layout.addWidget(self.button_box)
-
-        self.setLayout(layout)
-
-    def get_formation_name(self):
-        return self.formation_name.text()
-    
-
-class SaveFormation(QDialog):
-     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Save Formation")
-
-        # Dialog layout
-        layout = QVBoxLayout()
-        # ComboBox
-        self.formation_name = QLabel('Save Formation',self)
-        layout.addWidget(self.formation_name)
-
-        # OK and Cancel buttons
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        layout.addWidget(self.button_box)
-
-        self.setLayout(layout)
-
-
 class RoundButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
@@ -287,7 +217,6 @@ class PlayerIDAssociationApp(QWidget):
         self.__match_controller.set_player_tracking_interface(self)
         self.__data_controller = None
 
-    
     def set_data_controller(self, data_controller:DataAssociationsController)->None:
         self.__data_controller = data_controller
 
@@ -303,19 +232,15 @@ class PlayerIDAssociationApp(QWidget):
         jersey_icon = SvgManipulator(0, team_data['color'])
         jersey_icon.setFixedSize(180, 100)
         jersey_icon.rerender()
-
         self.__teams_widgets[current_index]['jersey_icon'] = jersey_icon
 
         left_vertical_layout = QVBoxLayout()
         left_grid = QGridLayout()
-      
         self.buttons = [ButtonWithID(f'{player.get("position")}  - {player.get("jersey_number")}', 
                                      {'id':int(player.get("jersey_number")), 'team':team_data.get('name'), 'position':player.get("position"), 'color':team_data.get('color'), 
                                       'player':player}, 
                                     self) for  player in players]
-        
         self.__teams_buttons.insert(current_index, self.buttons)
-
         self.__teams_widgets[current_index]['buttons'] = self.buttons
 
         for i, btn in enumerate(self.buttons):
@@ -326,7 +251,6 @@ class PlayerIDAssociationApp(QWidget):
         
         team_a_text = QLabel(team_data.get("name"))
         self.__teams_widgets[current_index]['team_name'] = team_a_text
-        
         team_a_text.setStyleSheet(""" 
                                 QLabel {
                                   font-weight:500;
@@ -334,7 +258,6 @@ class PlayerIDAssociationApp(QWidget):
                                 }
                                 """)
         left_grid.addWidget(team_a_text, 4, 0, 1, 2)
-       
         formations_text  = QLabel(team_data.get('formation'))
         formations_text.setStyleSheet(""" 
                                 QLabel {
@@ -344,13 +267,10 @@ class PlayerIDAssociationApp(QWidget):
                                 """)
         formations_text.setFixedSize(100, 40)
         formations_text.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-
         self.__teams_widgets[current_index]['formation_text'] = formations_text
-
         left_grid.addWidget(formations_text ,4, 2 , 1, 1)
         left_vertical_layout.addLayout(left_grid)
         left_vertical_layout.setAlignment(Qt.AlignTop)
-
         if left:
             self.bottom_layout.addWidget(jersey_icon)
 
@@ -375,8 +295,6 @@ class PlayerIDAssociationApp(QWidget):
         if self.__current_pressed_id is not None:
             self.__data_controller.associate_player(player, self.__current_pressed_id)
             
-
-
     def init_ids_grid(self, count=30)->None:
         self.__ids_grid = QGridLayout()
         for i in range(count):
@@ -414,7 +332,6 @@ class PlayerIDAssociationApp(QWidget):
     def init_top_bar(self)->None:
         self.connect_button = StyledButton('Connect Players', self)
         self.connect_button.clicked.connect(self.connect_button.toggle_color)
-        # self.connect_button.clicked.connect(self.__tracking_data.toggle_connections)
 
         self.start_associations = StyledButton('Start Associations', self)        
         self.start_associations.clicked.connect(self.start_associations.toggle_color)
@@ -422,8 +339,7 @@ class PlayerIDAssociationApp(QWidget):
 
         self.highlight_button = StyledButton('Start Highlighting', self)
         self.highlight_button.clicked.connect(self.highlight_button.toggle_color)
-        # self.highlight_button.clicked.connect(self.__tracking_data.toggle_highlight)
-
+       
         self.top_bar.addWidget(self.start_associations)
         self.top_bar.addWidget(self.connect_button)
         self.top_bar.addWidget(self.highlight_button)
@@ -432,27 +348,19 @@ class PlayerIDAssociationApp(QWidget):
     def initUI(self):
         self.setWindowTitle('Player Tracking Interface')
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)        
-         
         self.top_bar.setContentsMargins(0, 0, 0, 0)
         self.middle_layout.setContentsMargins(0,0,0,0)
         self.bottom_layout.setContentsMargins(0,0,0,0)
-
         self.init_top_bar()
-
         # Initialize team A (Left Team)
         self.init_team(True)
-
         # Initialize IDs grid
         self.init_ids_grid()
-
         #Initialize Team B (Right Team)
         self.init_team(False)
-
         # Image view
         self.image_label = ClickableLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
-        # self.image_label.registerCallback(self.__tracking_data.get_clicked)
-        
         image_layout = QVBoxLayout()
         image_layout.addWidget(self.image_label)
         image_layout.setContentsMargins(0,0,0,0)
@@ -535,7 +443,6 @@ class PlayerIDAssociationApp(QWidget):
         x_offset = 140//2
         y_offset = 85//2
 
-    
         for _, det in enumerate(track_objects):
             coord = det['coordinates'] 
             if coord is not None :
@@ -562,7 +469,6 @@ class PlayerIDAssociationApp(QWidget):
                     if det.get('state') == StateGenerator.ASSOCIATED:
                         clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled-10, y_scaled+25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
         return clone_bg
-
 
     def render_team(self, frame, team_info)->None:
         width = 0.89 * frame.shape[1] 
@@ -637,15 +543,10 @@ class PlayerIDAssociationApp(QWidget):
                     clone_bg = cv2.putText(clone_bg, f"??", (x_scaled, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,0), 2)
         return clone_bg
 
-   
-        
-
     def closeEvent(self, event):
         if self.cap is not None:
             self.cap.release()
         event.accept()
-
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
