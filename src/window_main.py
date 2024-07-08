@@ -7,6 +7,8 @@ from camera.controller import CamerasManager
 from tracking_interface import PlayerIDAssociationApp
 from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, FormationManagerView
 from team_information_view.controller import MatchController, DataAssociationsController
+from calibration.views import CalibrationPage
+from calibration.controller import CalibrationManager
 from cfg.paths_config import __ASSETS_DIR__
 
 class MainWindow(QMainWindow):
@@ -32,6 +34,7 @@ class MainWindow(QMainWindow):
                 CameraWidget("Camera 2", self),
                 CameraWidget("Camera 3", self)
             ]
+        self.__calibration_page = CalibrationPage()
         # Add pages to the tabes
         self.__tabs.addTab(self.__cameras_tab, "Cameras")
         self.__tabs.addTab(self.__track_tab, "Track")
@@ -96,6 +99,9 @@ class MainWindow(QMainWindow):
     def get_camera_widgets(self)->list[CameraWidget]:
         return self.__camera_docked_widgets
     
+    def get_calibration_page(self)->CalibrationPage:
+        return self.__calibration_page
+    
     def set_tracking_window(self, window:QWidget)->None:
         self.__tracking_window = window
 
@@ -103,6 +109,15 @@ class MainWindow(QMainWindow):
         self.create_cameras_page()
         # Other pages here...
         self.create_track_page()
+        self.create_calib_page()
+
+    def create_calib_page(self)->None:
+        self.calib_layout = QVBoxLayout()
+        self.calib_layout.addWidget(self.__calibration_page)
+
+        self.calib_layout.setAlignment(Qt.AlignTop)
+        self.__calib_tab.setLayout(self.calib_layout)
+        
 
     def open_formation_manager(self)->None:
         if self.__formations_view is None:
@@ -219,15 +234,20 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_window = MainWindow()
     
+    calibration_manager = CalibrationManager()
+    calibration_manager.register_frame_view(main_window.get_calibration_page())
+
     cameras_manager = CamerasManager(main_window.get_camera_widgets())
+    cameras_manager.registerCameraInputControllers(calibration_manager.get_camera_controllers())
+    
     match_controller = MatchController()
     da_controller = DataAssociationsController()
-    
     da_controller.set_match_controller(match_controller)
+
     main_window.set_match_controller(match_controller)
     main_window.set_data_associations_controller(da_controller)
-
     main_window.show()
+    
     app.exec_()
     cameras_manager.stop()
     da_controller.stop()

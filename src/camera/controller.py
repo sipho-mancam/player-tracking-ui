@@ -8,6 +8,10 @@ class CameraController:
         self.__view = view
         self.__stop_event = Event()
         self.__worker = None
+        self.__input_outlet_controllers = []
+
+    def registerController(self, controller)->None:
+        self.__input_outlet_controllers.append(controller)
 
     def __run(self)->None:
         # Runs the event loop between the model update and the view events
@@ -15,6 +19,10 @@ class CameraController:
             frame_buffer = self.__model.next()
             self.__view.update_frame(frame_buffer)
             self.__view.set_camera_data(self.__model.get_stream_data())
+
+            # update controllers
+            for controller in self.__input_outlet_controllers:
+                controller.update_frame(frame_buffer)
 
     def start(self)->None:
         # Start the the models grab loop
@@ -34,6 +42,7 @@ class CamerasManager:
         self.__views_list = views_list
         self.__cam_device_factory = DeviceFactory()
         self.__controllers = []
+       
         self.init()
 
     def init(self)->None:
@@ -47,6 +56,10 @@ class CamerasManager:
 
         for controller in self.__controllers:
             controller.start()
+
+    def registerCameraInputControllers(self, controllers:list)->None:
+        for idx, controller in enumerate(controllers):
+            self.__controllers[idx].registerController(controller)
 
     def stop(self)->None:
         for controller in self.__controllers:
