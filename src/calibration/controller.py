@@ -5,14 +5,18 @@ class CamCalibController:
         self.__current_frame = None
         self.__view = None
 
+        self.updated = False
+
     def update_frame(self, frame)->None:
         self.__current_frame = frame
 
-        if self.__view is not None:
+        if self.__view is not None and not self.updated:
             self.__view.update_frame(self.__current_frame)
+            self.updated = True
 
     def clear_view(self)->None:
         self.__view = None
+        self.updated = False
     
     def set_view(self, view)->None:
         self.__view = view
