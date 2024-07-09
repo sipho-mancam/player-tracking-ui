@@ -1,9 +1,11 @@
+from .model import CameraCalibModel
 
 class CamCalibController:
     def __init__(self, id)->None:
         self.__id = id
         self.__current_frame = None
         self.__view = None
+        self.__model = CameraCalibModel()
 
         self.updated = False
 

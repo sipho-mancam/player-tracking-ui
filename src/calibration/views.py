@@ -119,6 +119,19 @@ class Polygon(QWidget):
         super().resizeEvent(a0)
         self.__rect = self.parentWidget().rect()
         self.resize(self.parentWidget().size())
+
+    def update_polygon(self, points:list[tuple[float]])->None:
+        width = self.__rect.width()
+        height = self.__rect.height()
+
+        if len(self.__circles) == 0:
+            for point in points:
+                xpos , ypos = point
+                xpos *= width
+                ypos *= height
+                self.__circles.append(
+                    Circle(xpos, ypos, self.__circle_radii, self)
+                )
        
 
     def paintEvent(self, paintEvnet:QPaintEvent)->None:
@@ -192,6 +205,9 @@ class CameraCalibrationWidget(QWidget):
         self.__main_layout.addWidget(self.__frame_widget, 20)
         self.__main_layout.addLayout(buttons_container, 1)
         self.__main_layout.setAlignment(Qt.AlignTop)
+
+    def update_boundary_coordinates(self, boundary_coordinates)->None:
+        pass
         
     def paintEvent(self, paint_event)->None:
         style_op = QStyleOption()
@@ -234,6 +250,9 @@ class CalibrationPage(QWidget):
 
     def update_frame(self, frame:cv.Mat)->None:
         self.displayWidget.update_frame(frame)
+
+    def update_boundary_poly(self, poly_points)->None:
+        pass
         
 
     def init(self)->None:
@@ -280,8 +299,6 @@ class CalibrationPage(QWidget):
 
         self.__middle_layout.addWidget(self.__options_list)
         self.__middle_layout.addWidget(self.displayWidget)
-
-
 
 
 
