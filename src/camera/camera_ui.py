@@ -94,6 +94,7 @@ class CameraWidget(QDockWidget):
         self.__frame_rate = QLabel("Frame Rate: 10 fps", self)
         self.__frame_drop = QLabel("Frame Drops: 0", self)
         self.__frame_count = QLabel("Frame Count: 0", self)
+        self.__shared_memory = QLabel("Memory Name: ", self)
 
         font_style = "font-size: 14px;"
         self.__name.setStyleSheet(font_style)
@@ -101,6 +102,7 @@ class CameraWidget(QDockWidget):
         self.__frame_rate.setStyleSheet(font_style)
         self.__frame_drop.setStyleSheet(font_style)
         self.__frame_count.setStyleSheet(font_style)
+        self.__shared_memory.setStyleSheet(font_style)
         
         # Add list items
         self.__details_list.addWidget(self.__name)
@@ -108,6 +110,7 @@ class CameraWidget(QDockWidget):
         self.__details_list.addWidget(self.__frame_rate)
         self.__details_list.addWidget(self.__frame_drop)
         self.__details_list.addWidget(self.__frame_count)
+        self.__details_list.addWidget(self.__shared_memory)
         self.__details_list.setSpacing(0)
         self.__details_list.setContentsMargins(20,10,0,0)
 
@@ -191,6 +194,10 @@ class CameraWidget(QDockWidget):
         frame_counter = self.__camera_data.get('frame_count')
         if frame_counter is not None:
             self.__frame_count.setText(f"Frame Counter: {frame_counter}")
+
+        shared_mem_name = self.__camera_data.get("Memory Name")
+        if shared_mem_name is not None:
+            self.__shared_memory.setText(f"Memory Name: {shared_mem_name}_instance(int)")
 
         if self.__frame is not None:
             self.__frame = cv.resize(self.__frame,  (self.__ui_width, self.__ui_height))

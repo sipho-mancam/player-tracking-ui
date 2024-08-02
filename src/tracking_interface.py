@@ -3,7 +3,7 @@ import cv2
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QGridLayout, 
                              QVBoxLayout, QHBoxLayout)
                             #  QDialog, QDialogButtonBox, QComboBox, QLineEdit)
-from PyQt5.QtGui import QImage, QPixmap, QColor
+from PyQt5.QtGui import QImage, QPixmap, QColor, QPaintEvent, QPen, QBrush, QPainter
 from PyQt5.QtCore import Qt, QTimer
 from cfg.paths_config import __MINI_MAP_BG__, __TEAMS_DIR__
 from team_information_view.widgets import SvgManipulator
@@ -89,6 +89,7 @@ class ButtonWithID(QPushButton):
         self.__button_text = button_text
         self.__id = id
         self.__button_click_callback = None
+        self.__assigned_id = None
         self.setFixedSize(100, 40)  # Set fixed size to make it circular
         self.setStyleSheet("""
                     QPushButton {
@@ -116,7 +117,15 @@ class ButtonWithID(QPushButton):
         clr = (clr.red(), clr.green(), clr.blue())
         player['color'] = clr
         player['team'] = self.__id.get('team')
-        self.__button_click_callback(*(player,))
+        ret_data = self.__button_click_callback(*(player,))
+
+        if self.__assigned_id is None:
+            self.__assigned_id = ret_data
+
+        if ret_data is not None:
+            self.set_button_assigned(ret_data)
+            self.update()
+
 
     def get_button_id(self)->int:
         return self.__id
@@ -132,6 +141,46 @@ class ButtonWithID(QPushButton):
         self.__id['id'] = id
         self.__id['jersery_number'] = id
         self.setText(f"{self.__id['position']} -  {id}")
+
+    def set_button_assigned(self, id)->None:
+        self.__assigned_id = id
+
+    def clear_id(self, id)->None:
+        if id == self.__assigned_id:
+            self.__assigned_id = None
+            self.update()
+    
+    def draw_id(self)->None:
+        if self.__assigned_id is not None:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            pen = QPen(QColor(0, 0, 255), 2, Qt.SolidLine)
+            pen.setWidth(1)
+            brush = QBrush(QColor(0, 0, 255))
+            painter.setPen(pen)
+            painter.setBrush(brush)
+
+            c_width = 0.2
+            rect = self.rect()
+            w , m_h = rect.width() , rect.height()
+            x = rect.x()
+            x , w = round(x+(w*(1-c_width-0.05))), round(w*c_width)
+            d_1, y = m_h - w, rect.y()
+            y += d_1//2
+            rect.setX(x) 
+            rect.setY(y)
+            rect.setWidth(w)
+            rect.setHeight(w)
+            painter.drawEllipse(rect)
+            painter.setPen(QColor(255, 255, 255))
+            painter.drawText(rect, Qt.AlignCenter, str(self.__assigned_id))
+
+    def paintEvent(self, event:QPaintEvent)->None:
+        super().paintEvent(event)
+        self.draw_id()
+        
+
+        
         
 class RoundButton(QPushButton):
     def __init__(self, text, parent=None):
@@ -283,17 +332,26 @@ class PlayerIDAssociationApp(QWidget):
         if self.__current_pressed_id is None:
             self.__current_pressed_id = id
         else:
-            self.__ids_grid_buttons[self.__current_pressed_id].set_color(self.__default_button_color)
+            for team_widgets in self.__teams_widgets:
+                for button in team_widgets['buttons']:
+                    button.clear_id(id)
+            # self.__ids_grid_buttons[self.__current_pressed_id].set_color(self.__default_button_color)
             self.__current_pressed_id = id
 
         btn = self.__ids_grid_buttons[id]
         btn.set_color("red")
         if self.__data_controller is not None:
             self.__data_controller.update_click(id)
+
     
     def associate_player_to_id(self, player)->None:
         if self.__current_pressed_id is not None:
             self.__data_controller.associate_player(player, self.__current_pressed_id)
+            self.__ids_grid_buttons[self.__current_pressed_id].set_color('grey')
+
+            
+
+            return self.__current_pressed_id
             
     def init_ids_grid(self, count=30)->None:
         self.__ids_grid = QGridLayout()
@@ -451,23 +509,33 @@ class PlayerIDAssociationApp(QWidget):
                 det['ui_coordinates'] = (x_scaled, y_scaled)
 
                 if det.get('state') == StateGenerator.CLICKED:
-                    det['color'] = PlayerIDAssociationApp.COLOR_TABLE[PlayerIDAssociationApp.CLICKED_COLOR]
+                    if det.get('kit_color') is not None:
+                        det['color'] = det['kit_color']
+                    clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 12,  (255, 255, 0) , 2)
+              
+                if det.get('state') == StateGenerator.UNASSOCIATED:
+                    if det.get('kit_color'):
+                        det['color'] = det['kit_color']
+                    else:
+                        color = det.get('color')
                 
-                if det.get('state') == StateGenerator.ASSOCIATED:
-                    pass
-
-                clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 15,  det.get('color'), cv2.FILLED)
+                clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 10,  det.get('color') , cv2.FILLED)
 
                 if det.get('jersey_number') is not None:
                     if det.get('highlight') == 1:
                         text_color = (255, 0, 0)
                     else:
                         text_color = (255, 255, 255)
-                    
-                    clone_bg = cv2.putText(clone_bg, f"{det.get('track_id')}", (x_scaled-10, y_scaled-20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
 
                     if det.get('state') == StateGenerator.ASSOCIATED:
-                        clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled-10, y_scaled+25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
+                        clone_bg = cv2.putText(clone_bg, f"{det.get('jersey_number')}", (x_scaled-10, y_scaled+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
+                    else:
+                        clone_bg = cv2.putText(clone_bg, f"{det.get('track_id')}", (x_scaled-10, y_scaled-20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+                    
+                    if det.get('options').get('alert') and det.get('state') == StateGenerator.ASSOCIATED: 
+                        clone_bg = cv2.circle(clone_bg, (x_scaled, y_scaled), 12,  (180, 180, 180) , 2)
+                        clone_bg = cv2.putText(clone_bg, f"{det.get('track_id')}", (x_scaled-10, y_scaled-20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+
         return clone_bg
 
     def render_team(self, frame, team_info)->None:

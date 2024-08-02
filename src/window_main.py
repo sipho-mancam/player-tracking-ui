@@ -106,11 +106,11 @@ class MainWindow(QMainWindow):
         self.__tracking_window = window
 
     def init_pages(self)->None:
-        self.create_cameras_page()
         # Other pages here...
         self.create_track_page()
         self.create_calib_page()
-
+        self.create_cameras_page()
+        
     def create_calib_page(self)->None:
         self.calib_layout = QVBoxLayout()
         self.calib_layout.addWidget(self.__calibration_page)

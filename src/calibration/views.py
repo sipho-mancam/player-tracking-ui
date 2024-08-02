@@ -129,11 +129,8 @@ class Polygon(QWidget):
                 xpos , ypos = point
                 xpos *= width
                 ypos *= height
-                self.__circles.append(
-                    Circle(xpos, ypos, self.__circle_radii, self)
-                )
+                self.__circles.append(Circle(int(xpos), int(ypos), self.__circle_radii, self))
        
-
     def paintEvent(self, paintEvnet:QPaintEvent)->None:
         painter = QPainter(self)
         pen = QPen(QColor("#0000ff"), 3, Qt.SolidLine)
@@ -152,7 +149,6 @@ class Polygon(QWidget):
         else:
             points = []
             for circle in self.__circles:
-                # print(circle.circle_x, circle.circle_y)
                 points.append(
                     QPoint(circle.circle_x, circle.circle_y)
                 )

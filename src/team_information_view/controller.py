@@ -140,6 +140,7 @@ class StateGenerator:
     UNASSOCIATED = 0
     ASSOCIATED = 1
     CLICKED = 2
+    ALERT = 3
     def __init__(self, match_controller:MatchController, tracking_model:TrackingDataModel)->None:
         self.state = []
         self.__match_controller = match_controller
@@ -154,6 +155,8 @@ class StateGenerator:
 
     def associate(self, player:dict, id:int)->None:
         # Check if the player wasn't assigned before.
+        player['alert'] = False
+
         for key in self.__associations_table.keys():
             p_l = self.__associations_table[key]
             if (str(p_l.get('team'))+str(p_l.get('jersey_number'))) == str(player.get('team'))+str(player.get('jersey_number')):
@@ -221,6 +224,7 @@ class StateGenerator:
                     'jersey_number':track.get('tracking-id'),
                     'team':'default',
                     'color':self.__default_color, 
+                    'kit_color':track.get('kit_color'),
                     'state':StateGenerator.UNASSOCIATED,
                     'options':{
                         'alert':False,
@@ -229,15 +233,19 @@ class StateGenerator:
 
 
     def __create_state_object(self, player:dict, track:dict)->None:
+        if player.get('alert') is None or not player.get('alert'):
+            player['alert'] = track.get('alert')
+
         return {
                     'track_id':track.get('tracking-id'),
                     'coordinates': track.get('coordinates'),
                     'jersey_number':player.get('jersey_number'),
                     'team':player.get('team'),
                     'color':player.get('color'), 
+                    'kit_color':track.get('kit_color'),
                     'state': StateGenerator.ASSOCIATED,
                     'options':{
-                        'alert':False,
+                        'alert': player.get('alert') if player.get('alert') else False,
                         'highlight':False
                 }}
 

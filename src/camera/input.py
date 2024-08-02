@@ -160,6 +160,7 @@ class InputStreamB(BInputSource):
         self.__frame = None
         self.__stream_id = id
         self.__shared_mem = []
+        self.__shared_mem_name = None
         self.init()
 
     def set_start_flag(self, flag:Event)->None:
@@ -239,7 +240,8 @@ class InputStreamB(BInputSource):
                         img = self.__fill_polygons(img)
                     
                     if len(self.__shared_mem) == 0:
-                        self.__shared_mem = [
+                        self.__shared_mem_name = "frame_buffer_"+str(self.__stream_id)
+                        self.__shared_mem = [ 
                             VideoShared("frame_buffer_"+str(self.__stream_id)+"_0", img.nbytes),
                             VideoShared("frame_buffer_"+str(self.__stream_id)+"_1", img.nbytes)
                         ]
@@ -268,6 +270,7 @@ class InputStreamB(BInputSource):
         self._stream_data['frame_drops'] = self.get_frame_drops()
         self._stream_data['frame_count']  = self.__frame_count
         self._stream_data['frame_size'] = self.__frame.shape[:2] if self.__frame is not None else (1942, 2048)
+        self._stream_data['Memory Name'] =  self.__shared_mem_name 
 
 
     def start_recording(self, fps=10.0):
