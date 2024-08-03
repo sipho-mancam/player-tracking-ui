@@ -42,11 +42,13 @@ class CamerasManager:
         self.__views_list = views_list
         self.__cam_device_factory = DeviceFactory()
         self.__controllers = []
-       
         self.init()
 
+
+
     def init(self)->None:
-        self.__cam_device_factory.wait_for_cameras(3)
+
+        self.__cam_device_factory.wait_for_cameras(0)
         for idx, view in enumerate(self.__views_list):
             self.__controllers.append(
                 CameraController(self.__cam_device_factory.get_input_stream(idx), view)
