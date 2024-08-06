@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QTimer
 from cfg.paths_config import __MINI_MAP_BG__, __TEAMS_DIR__
 from team_information_view.widgets import SvgManipulator
 from team_information_view.controller import MatchController, StateGenerator, DataAssociationsController
-
+import numpy as np
 from pprint import pprint
 
 class ClickableLabel(QLabel):
@@ -24,10 +24,7 @@ class ClickableLabel(QLabel):
             x = event.x()
             y = event.y()
             if self.__mouse_callback is not None:
-                if self.__doing_formations:
-                    self.__formations_cb(*(event,))
-                else:
-                    self.__mouse_callback(*(x, y))
+                self.__mouse_callback((x, y))
 
     def registerCallback(self, callback_function)->None:
         self.__mouse_callback = callback_function
@@ -98,6 +95,9 @@ class ButtonWithID(QPushButton):
                         border-style: outset;
                         background: #ddd;
                         padding: 10px;
+                        font-weight:500;
+                        text-align:left;
+                        margin-left:20;
                         
                     }
                     QPushButton:pressed {
@@ -140,7 +140,7 @@ class ButtonWithID(QPushButton):
     def set_id(self, id)->None:
         self.__id['id'] = id
         self.__id['jersery_number'] = id
-        self.setText(f"{self.__id['position']} -  {id}")
+        self.setText(f"{self.__id['position']}")
 
     def set_button_assigned(self, id)->None:
         self.__assigned_id = id
@@ -172,16 +172,46 @@ class ButtonWithID(QPushButton):
             rect.setWidth(w)
             rect.setHeight(w)
             painter.drawEllipse(rect)
-            painter.setPen(QColor(255, 255, 255))
+            p = QPen(QColor(255, 255, 255), 3)
+            painter.setPen(p)
             painter.drawText(rect, Qt.AlignCenter, str(self.__assigned_id))
+
+
+    
+    def draw_jersey(self)->None:
+        id = self.__id.get('id')
+        
+        if id is not None:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            pen = QPen(QColor(0, 0, 0), 2, Qt.SolidLine)
+            pen.setWidth(1)
+            brush = QBrush(QColor(0, 0, 0))
+            painter.setPen(pen)
+            painter.setBrush(brush)
+
+            c_width = 0.2
+            rect = self.rect()
+            w , m_h = rect.width() , rect.height()
+            x = rect.x()
+            x , w = round(x+(w*(1-c_width-0.25))), round(w*c_width)
+            d_1, y = m_h - w, rect.y()
+            y += d_1//2
+            rect.setX(x) 
+            rect.setY(y)
+            rect.setWidth(w)
+            rect.setHeight(w)
+            painter.drawEllipse(rect)
+            p = QPen(QColor(255, 255, 255), 3)
+            painter.setPen(p)
+            painter.drawText(rect, Qt.AlignCenter, str(id))
 
     def paintEvent(self, event:QPaintEvent)->None:
         super().paintEvent(event)
         self.draw_id()
-        
+        self.draw_jersey()
+          
 
-        
-        
 class RoundButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
@@ -261,10 +291,31 @@ class PlayerIDAssociationApp(QWidget):
         self.__ids_grid_buttons = []
         self.__default_button_color = 'blue'
         self.__current_pressed_id = None
+        self.__current_ui_state = []
 
         self.initUI()
         self.__match_controller.set_player_tracking_interface(self)
         self.__data_controller = None
+
+    def handle_field_click(self, point)->None:
+        MIN_DISTANCE = 10
+        current_ui_state = self.__current_ui_state.copy()
+
+        dist_list = []
+        for elem in current_ui_state:
+            p2 = elem.get('ui_coordinates')
+            dist = np.sqrt(np.power(p2[0]-point[0], 2) + np.power(p2[1] - point[1], 2))
+            dist_list.append(dist)
+
+        m = min(dist_list)
+        if m <= MIN_DISTANCE:
+            i = dist_list.index(m)
+            elem = current_ui_state[i]
+            id = elem.get('track_id')
+            if self.__data_controller is not None:
+                self.__data_controller.update_click(id)
+                self.__current_pressed_id = id
+
 
     def set_data_controller(self, data_controller:DataAssociationsController)->None:
         self.__data_controller = data_controller
@@ -285,7 +336,7 @@ class PlayerIDAssociationApp(QWidget):
 
         left_vertical_layout = QVBoxLayout()
         left_grid = QGridLayout()
-        self.buttons = [ButtonWithID(f'{player.get("position")}  - {player.get("jersey_number")}', 
+        self.buttons = [ButtonWithID(f'{player.get("position")}', 
                                      {'id':int(player.get("jersey_number")), 'team':team_data.get('name'), 'position':player.get("position"), 'color':team_data.get('color'), 
                                       'player':player}, 
                                     self) for  player in players]
@@ -348,9 +399,6 @@ class PlayerIDAssociationApp(QWidget):
         if self.__current_pressed_id is not None:
             self.__data_controller.associate_player(player, self.__current_pressed_id)
             self.__ids_grid_buttons[self.__current_pressed_id].set_color('grey')
-
-            
-
             return self.__current_pressed_id
             
     def init_ids_grid(self, count=30)->None:
@@ -419,6 +467,7 @@ class PlayerIDAssociationApp(QWidget):
         # Image view
         self.image_label = ClickableLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.registerCallback(self.handle_field_click)
         image_layout = QVBoxLayout()
         image_layout.addWidget(self.image_label)
         image_layout.setContentsMargins(0,0,0,0)
@@ -497,9 +546,10 @@ class PlayerIDAssociationApp(QWidget):
     def render_track_objects(self, frame, track_objects:list[dict])->None:
         width = 0.89 * frame.shape[1] 
         height = 0.895 * frame.shape[0]
-        clone_bg = frame
+        clone_bg = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         x_offset = 140//2
         y_offset = 85//2
+        self.__current_ui_state = []
 
         for _, det in enumerate(track_objects):
             coord = det['coordinates'] 
@@ -507,6 +557,7 @@ class PlayerIDAssociationApp(QWidget):
                 x_scaled = x_offset + int(coord[0]*width)
                 y_scaled = y_offset + int(coord[1]*height)
                 det['ui_coordinates'] = (x_scaled, y_scaled)
+                self.__current_ui_state.append(det)
 
                 if det.get('state') == StateGenerator.CLICKED:
                     if det.get('kit_color') is not None:
@@ -516,6 +567,10 @@ class PlayerIDAssociationApp(QWidget):
                 if det.get('state') == StateGenerator.UNASSOCIATED:
                     if det.get('kit_color'):
                         det['color'] = det['kit_color']
+                        col = det['color']
+                        r, g, b =  col
+                        col = b,g,r
+                        det['color'] = col
                     else:
                         color = det.get('color')
                 
