@@ -248,5 +248,6 @@ if __name__ == "__main__":
     main_window.show()
     
     app.exec_()
-    cameras_manager.stop()
     da_controller.stop()
+    cameras_manager.stop()
+    

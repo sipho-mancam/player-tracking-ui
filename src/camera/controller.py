@@ -1,6 +1,6 @@
 from threading import Thread, Event
 from .camera_ui import CameraWidget
-from .input import DeviceFactory, InputStreamB, InputStream
+from .input import InputManager, CameraModel
 
 class CameraController:
     def __init__(self, model, view)->None:
@@ -38,20 +38,18 @@ class CameraController:
             self.__model.stop()
 
 class CamerasManager:
+    
     def __init__(self, views_list:list[CameraWidget])->None:
         self.__views_list = views_list
-        self.__cam_device_factory = DeviceFactory()
+        self.frame_size = 15089340
+        self.__input_manager = InputManager("Kit Detector", self.frame_size)
         self.__controllers = []
         self.init()
 
-
-
     def init(self)->None:
-
-        self.__cam_device_factory.wait_for_cameras(3)
         for idx, view in enumerate(self.__views_list):
             self.__controllers.append(
-                CameraController(self.__cam_device_factory.get_input_stream(idx), view)
+                CameraController(self.__input_manager.get_input_stream(idx), view)
             )
             if idx >= 2:
                 break
@@ -64,6 +62,7 @@ class CamerasManager:
             self.__controllers[idx].registerController(controller)
 
     def stop(self)->None:
+        self.__input_manager.stop()
         for controller in self.__controllers:
             controller.stop()
-            
+        
