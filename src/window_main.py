@@ -127,8 +127,7 @@ class MainWindow(QMainWindow):
             self.__formations_view.show()
         else:
             self.__formations_view.show()
-        
-
+    
 
     def create_cameras_page(self)->None:
         # Create first dock widget

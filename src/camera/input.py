@@ -7,6 +7,14 @@ from pypylon import pylon, genicam
 import cv2
 import threading
 import time
+
+import mmap
+import ctypes
+from ctypes import wintypes
+import ctypes.wintypes
+import cv2
+import numpy as np
+import time
 # from cfg.paths_config import __VIDEO_REC_OUTPUT_DIR__
 import cupy as cp
 from .shared_memory_video_api import VideoShared
@@ -316,6 +324,58 @@ class InputStreamB(BInputSource):
         self.stop_recording()
         self.stop_grabbing()
         self.camera.Close()
+
+
+class SharedMemoryReader:
+    def __init__(self, name, size):
+        self.name = name
+        self.size = size
+        self.buffer = bytearray(size)# Create a ctypes array for the buffer
+        self.pBuf = None
+
+        # Open the file mapping object
+        self.hMapFile = ctypes.windll.kernel32.OpenFileMappingW(
+            wintypes.DWORD(0xF001F),  # FILE_MAP_ALL_ACCESS
+            wintypes.BOOL(False),
+            wintypes.LPCWSTR(name)
+        )
+
+        if not self.hMapFile:
+            raise Exception(f"Could not open file mapping object ({ctypes.GetLastError()}).")
+        
+        self.file_map = mmap.mmap(0, size, tagname=name, access=mmap.ACCESS_READ)
+
+        # Open the event object for synchronization
+        self.hEvent = ctypes.windll.kernel32.OpenEventW(
+            wintypes.DWORD(0x1F0003),  # EVENT_ALL_ACCESS
+            wintypes.BOOL(False),
+            wintypes.LPCWSTR(name + "_Event")
+        )
+
+        if not self.hEvent:
+            ctypes.windll.kernel32.UnmapViewOfFile(self.pBuf)
+            ctypes.windll.kernel32.CloseHandle(self.hMapFile)
+            raise Exception(f"Could not open event object ({ctypes.GetLastError()}).")
+
+        print("Shared Reader created successfully")
+
+    def __del__(self):
+        if self.pBuf:
+            ctypes.windll.kernel32.UnmapViewOfFile(self.pBuf)
+        if self.hMapFile:
+            ctypes.windll.kernel32.CloseHandle(self.hMapFile)
+        if self.hEvent:
+            ctypes.windll.kernel32.CloseHandle(self.hEvent)
+
+    def read_from_memory(self):
+        result = ctypes.windll.kernel32.WaitForSingleObject(self.hEvent, wintypes.DWORD(-1))  # INFINITE
+        
+        if result != 0:  # WAIT_OBJECT_0
+            raise Exception(f"WaitForSingleObject failed ({ctypes.GetLastError()}).")
+        
+        self.file_map.seek(0)
+        self.buffer = self.file_map[:]
+        return self.buffer
 
 
 
