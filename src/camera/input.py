@@ -188,7 +188,7 @@ class InputManager:
                 print("There was a runtime error on the conditional variable ")
                 print(re.with_traceback())
             end_time = time.time()
-            print(f"Waited for: {round((end_time- start_time)*1e3)} ms")
+            # print(f"Waited for: {round((end_time- start_time)*1e3)} ms")
             current_frame_rate = round(1e3/((end_time- start_time)*1e3),1)
 
     def stop(self)->None:
