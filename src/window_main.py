@@ -22,7 +22,7 @@ class MainWindow(QMainWindow):
         self.__status_bar = QStatusBar(self)
         self.t_layout = None
         self.__tracking_window = None
-
+        
         #Create tab pages
         self.__cameras_tab = QWidget()
         self.__config_tab = QWidget()

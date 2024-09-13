@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (QWidget, QApplication, QVBoxLayout,
 import sys
 import cv2 as cv
 from pathlib import Path
+import random
 
 
 __ASSETS_DIR__ = Path(".\\assets")
@@ -23,10 +24,8 @@ class FrameViewResize(QLabel):
 
     def resizeEvent(self, event)->None:
         self.updateScaledPixmap()
-        
         for child in self.children():
-            child.resizeEvent(event)
-
+            child.resizeEvent(event)  
         super().resizeEvent(event)
 
     def updateScaledPixmap(self):
@@ -141,21 +140,74 @@ class Circle(QWidget):
         if self.__dragging:
             self.move(self.mapToParent(self.pending_move_position - self.__start_pos))
 
+
 class Polygon(QWidget):
     def __init__(self, points=[], parent = None, filled = False,) -> None:
         super().__init__(parent)
-        self.setGeometry(parent.rect())
-        self.__rect = parent.rect()
+        self.__poly_points_n = points
+        self.__rect = None
+        # self.calculate_widget_rect()
+        self.__rect = self.parentWidget().rect()
+        self.setGeometry(self.parentWidget().rect())
         self.__circle_radii = 10
         self.__circles = []
-        self.__poly_points_n = points
         self.__poly_points  = []
-        self.__fill = False
+        self.__fill = filled
         self.update_polygon(points)
+        self.setVisible(True)
+        
+        self.__id  = random.randint(0, 100)
+    
+    def mousePressEvent(self, a0: QMouseEvent | None) -> None:
+        self.click_handle()
+        return super().mousePressEvent(a0)
+    
+
+    def calculate_widget_rect(self)->None:
+        """
+        1. First get the enclosing rectangle
+        2. 
+        """
+        p_rect = self.parentWidget().rect()
+        p_width = p_rect.width()
+        p_height = p_rect.height()
+
+        x_list , y_list = [], []
+
+        for point in self.__poly_points_n:
+            x_n, y_n = point
+            x_list.append(x_n)
+            y_list.append(y_n)
+
+        x_t = round(min(x_list) * p_width)
+        y_t = round(min(y_list) * p_height)
+
+        x_b = round(max(x_list) * p_width)
+        y_b = round(max(y_list)  *p_height)
+        self.__rect = QRect(QPoint(x_t, y_t), QPoint(x_b, y_b))
+
+
+    def set_full_size_rect(self)->None:
+        """
+        1. This sets the widget to currently fill the whole view port
+        """
+        print("I execute \{set_full_size_rect\}")
+        self.__rect = self.parentWidget().rect()
+        self.setGeometry(self.__rect)
+        # self.resize(self.parentWidget().size())
+        self.updateGeometry()
+    
+    def clear_full_size_rect(self)->None:
+        print("I execute {clear_full_size_rect()}")
+        self.calculate_widget_rect()
+        self.setGeometry(self.__rect)
+        # self.resize(self.__rect.width(), self.__rect.height())
+        self.updateGeometry()
+
 
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         super().resizeEvent(a0)
-        self.__rect = self.parentWidget().rect()
+        self.__rect  = self.parentWidget().rect()
         self.resize(self.parentWidget().size())
         self.update_polygon(self.__poly_points_n)
         self.update()
@@ -230,9 +282,9 @@ class Polygon(QWidget):
 
     def get_normalize_coordinates(self)->list[tuple[float]]:
         return self.__poly_points_n
-
-
-
+    
+    def click_handle(self)->None:
+        print(f"Polygon clicked ... {self.__id}")
 
 class CameraCalibrationWidget(QWidget):
     def __init__(self, parent: QWidget = None) -> None:
@@ -249,10 +301,8 @@ class CameraCalibrationWidget(QWidget):
         self.__current_poly = None
         self.init()
         self.setLayout(self.__main_layout)
-        self.__current_calib_data = None
-        
+        self.__current_calib_data = None        
         self.__polygons_list = []
-       
 
     def init(self)->None:
         self.__frame_widget = FrameViewResize()
@@ -266,6 +316,8 @@ class CameraCalibrationWidget(QWidget):
         self.__plgn_btn = QPushButton("Add Mask") # This add a filled Polygon
         # self.__save_btn = QPushButton("Save Calib")
 
+        self.__plgn_btn.clicked.connect(self.add_mask_poly)
+
         buttons_container.addWidget(self.__bb_btn)
         buttons_container.addWidget(self.__plgn_btn)
         # buttons_container.addWidget(self.__save_btn)
@@ -277,6 +329,12 @@ class CameraCalibrationWidget(QWidget):
 
     def update_boundary_coordinates(self, boundary_coordinates)->None:
         pass
+
+    def add_mask_poly(self)->None:
+        self.__polygons_list.append(
+            Polygon([(0.3,0.3), (0.5, 0.3), (0.5,0.5), (0, 0.5)], self.__frame_widget, True)
+        )
+        self.__frame_widget.update()
         
     def paintEvent(self, paint_event)->None:
         style_op = QStyleOption()
