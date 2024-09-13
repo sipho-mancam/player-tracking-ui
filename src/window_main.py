@@ -232,6 +232,8 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_window = MainWindow()
+
+    
     
     calibration_manager = CalibrationManager()
     calibration_manager.register_frame_view(main_window.get_calibration_page())
