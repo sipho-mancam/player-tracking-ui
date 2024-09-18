@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLabel,
                              QDialog, QGridLayout, QScrollArea, QFrame, QHBoxLayout)
 from PyQt5.QtGui import QColor, QPalette 
 from PyQt5.QtCore import Qt
+import colorsys
 
 class ColorPalette(QDialog):
     def __init__(self, colors, parent=None):
@@ -19,7 +20,7 @@ class ColorPalette(QDialog):
             label = QLabel()
             label.setAutoFillBackground(True)
             palette = label.palette()
-            palette.setColor(QPalette.Window, QColor(color))
+            palette.setColor(QPalette.Window, QColor(*color))
             label.setPalette(palette)
             label.setFrameStyle(QFrame.Box | QFrame.Plain)
             label.setLineWidth(2)
@@ -87,7 +88,10 @@ class ColorPickerApp(QDialog):
     def launch_color_palette(self, label):
         dialog = ColorPalette(self.colors_, self)
         if dialog.exec_() == QDialog.Accepted:
-            self.boxes[label].setStyleSheet(f"background-color: {dialog.selected_color}; border: 1px solid black;")
+            cl_str = "#"
+            r , g, b = dialog.selected_color
+            cl_str += hex(r)[2:] + hex(g)[2:] + hex(b)[2:] 
+            self.boxes[label].setStyleSheet(f"background-color: {cl_str}; border: 1px solid black;")
             self.selected_colors[label] = dialog.selected_color
             self.colors_selected += 1
             if self.colors_selected == 3:

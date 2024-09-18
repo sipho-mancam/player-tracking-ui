@@ -306,7 +306,9 @@ class PlayerIDAssociationApp(QWidget):
             p2 = elem.get('ui_coordinates')
             dist = np.sqrt(np.power(p2[0]-point[0], 2) + np.power(p2[1] - point[1], 2))
             dist_list.append(dist)
-
+        if len(dist_list) == 0:
+            return
+        
         m = min(dist_list)
         if m <= MIN_DISTANCE:
             i = dist_list.index(m)
@@ -569,7 +571,7 @@ class PlayerIDAssociationApp(QWidget):
                         det['color'] = det['kit_color']
                         col = det['color']
                         r, g, b =  col
-                        col = b,g,r
+                        col = r,g,b
                         det['color'] = col
                     else:
                         color = det.get('color')

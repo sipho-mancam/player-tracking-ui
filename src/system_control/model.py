@@ -1,5 +1,6 @@
-from confluent_kafka import Consumer, KafkaException
+from confluent_kafka import Consumer, KafkaException, KafkaError
 import json
+import threading
 
 class ColorPaletteListener:
     def __init__(self, topic, bootstrap_servers='localhost:9092', group_id='color_palette_group'):
@@ -9,6 +10,11 @@ class ColorPaletteListener:
             'group.id': group_id,
             'auto.offset.reset': 'earliest'
         })
+        self.__listener = None
+
+        self.thread = threading.Thread(target=self.listen)
+        self.thread.daemon = True
+        self.thread.start()
 
     def listen(self):
         self.consumer.subscribe([self.topic])
@@ -18,18 +24,24 @@ class ColorPaletteListener:
                 if msg is None:
                     continue
                 if msg.error():
-                    if msg.error().code() == KafkaException._PARTITION_EOF:
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
                         continue
                     else:
-                        raise KafkaException(msg.error())
+                        continue
+                        # raise KafkaException(msg.error())
                 data = json.loads(msg.value().decode('utf-8'))
                 if 'color_palette' in data:
                     color_palette = self.parse_color_palette(data['color_palette'])
-                    print(f"Received color palette: {color_palette}")
+                    if self.__listener is not None:
+                        self.__listener(*(color_palette, ))
         except KeyboardInterrupt:
             pass
         finally:
             self.consumer.close()
+
+
+    def register_listener(self, listener)->None:
+        self.__listener = listener
 
     @staticmethod
     def parse_color_palette(color_palette):

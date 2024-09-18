@@ -1,6 +1,6 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QPushButton, QHBoxLayout,QVBoxLayout, QWidget, QTabWidget, QStatusBar, QMenuBar, QAction
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QPushButton, QHBoxLayout,QVBoxLayout, QWidget, QTabWidget, QStatusBar, QMenuBar, QAction, QDialog
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
 from camera.controller import CamerasManager
@@ -10,7 +10,8 @@ from team_information_view.controller import MatchController, DataAssociationsCo
 from calibration.views import CalibrationPage
 from calibration.controller import CalibrationManager
 from cfg.paths_config import __ASSETS_DIR__
-
+from system_control.controller import ColorPaletteController
+from system_control.palette import ColorPickerApp
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -54,6 +55,28 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.__tabs)
         self.setStatusBar(self.__status_bar)
 
+        self.__timer = QTimer(self)
+        self.__timer.timeout.connect(self.update_ui)
+        self.__timer.start(100)
+        self.__palette_triggered = False
+        self.__palette_colors = None
+        self.__palette_controller = None
+
+    def update_ui(self)->None:
+        if self.__palette_triggered:
+            palette = ColorPickerApp(self.__palette_colors)
+            if palette.exec() == QDialog.Accepted:
+                # print(palette.selected_colors)
+                self.__palette_triggered = False
+                if self.__palette_controller is not None:
+                    self.__palette_controller.update_selected_color(palette.selected_colors)
+
+    def register_pallete_controller(self, controller)->None:
+        self.__palette_controller = controller
+
+    def set_color_palette(self, colors):
+        self.__palette_colors = colors
+        self.__palette_triggered = True
       
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
@@ -233,7 +256,9 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_window = MainWindow()
 
-    
+    color_pallete_controller = ColorPaletteController()
+    color_pallete_controller.set_view(main_window)
+    main_window.register_pallete_controller(color_pallete_controller)
     
     calibration_manager = CalibrationManager()
     calibration_manager.register_frame_view(main_window.get_calibration_page())
