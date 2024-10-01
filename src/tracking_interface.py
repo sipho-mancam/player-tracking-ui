@@ -455,7 +455,7 @@ class PlayerIDAssociationApp(QWidget):
 
     def initUI(self):
         self.setWindowTitle('Player Tracking Interface')
-        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)        
+        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint)        
         self.top_bar.setContentsMargins(0, 0, 0, 0)
         self.middle_layout.setContentsMargins(0,0,0,0)
         self.bottom_layout.setContentsMargins(0,0,0,0)
@@ -464,8 +464,8 @@ class PlayerIDAssociationApp(QWidget):
         self.init_team(True)
         # Initialize IDs grid
         self.init_ids_grid()
-        #Initialize Team B (Right Team)
-        self.init_team(False)
+        # #Initialize Team B (Right Team)
+        # self.init_team(False)
         # Image view
         self.image_label = ClickableLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
