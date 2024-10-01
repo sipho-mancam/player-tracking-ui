@@ -1,1 +1,25 @@
-{"players": [{"player-name": "30", "jersey_number": "30", "position": "GK"}, {"player-name": "48", "jersey_number": "48", "position": "LOB"}, {"player-name": "14", "jersey_number": "14", "position": "LCB"}, {"player-name": "84", "jersey_number": "84", "position": "RCB"}, {"player-name": "39", "jersey_number": "39", "position": "ROB"}, {"player-name": "10", "jersey_number": "10", "position": "LW"}, {"player-name": "17", "jersey_number": "17", "position": "CM"}, {"player-name": "8", "jersey_number": "8", "position": "DCM"}, {"player-name": "36", "jersey_number": "36", "position": "RW"}, {"player-name": "42", "jersey_number": "42", "position": "ACM"}, {"player-name": "7", "jersey_number": "7", "position": "CF"}], "subs": [{"player-name": "47", "jersey_number": "47", "position": "SUB"}, {"player-name": "11", "jersey_number": "11", "position": "SUB"}, {"player-name": "24", "jersey_number": "24", "position": "SUB"}, {"player-name": "27", "jersey_number": "27", "position": "SUB"}, {"player-name": "44", "jersey_number": "44", "position": "SUB"}], "name": "kaizer chiefs", "color": "#ffdc2c", "formation": "4-4-2"}
+{
+  "players": [
+    { "player-name": "30", "jersey_number": "30", "position": "GK" },
+    { "player-name": "48", "jersey_number": "48", "position": "LOB" },
+    { "player-name": "14", "jersey_number": "14", "position": "LCB" },
+    { "player-name": "84", "jersey_number": "84", "position": "RCB" },
+    { "player-name": "39", "jersey_number": "39", "position": "ROB" },
+    { "player-name": "10", "jersey_number": "10", "position": "LW" },
+    { "player-name": "17", "jersey_number": "17", "position": "CM" },
+    { "player-name": "8", "jersey_number": "8", "position": "DCM" },
+    { "player-name": "36", "jersey_number": "36", "position": "RW" },
+    { "player-name": "42", "jersey_number": "42", "position": "ACM" },
+    { "player-name": "7", "jersey_number": "7", "position": "CF" }
+  ],
+  "subs": [
+    { "player-name": "47", "jersey_number": "47", "position": "SUB" },
+    { "player-name": "11", "jersey_number": "11", "position": "SUB" },
+    { "player-name": "24", "jersey_number": "24", "position": "SUB" },
+    { "player-name": "27", "jersey_number": "27", "position": "SUB" },
+    { "player-name": "44", "jersey_number": "44", "position": "SUB" }
+  ],
+  "name": "kaizer chiefs",
+  "color": "#ffdc2c",
+  "formation": "4-4-2"
+}

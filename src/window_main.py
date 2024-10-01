@@ -9,10 +9,10 @@ from cfg.paths_config import __ASSETS_DIR__
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    match_controller = MatchController()
+    match_controller = MatchController("10.0.0.49")
     da_controller = DataAssociationsController()
     da_controller.set_match_controller(match_controller)
-    
+
     tracking_window = PlayerIDAssociationApp(match_controller)
     tracking_window.set_data_controller(da_controller)
 

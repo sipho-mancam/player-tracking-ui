@@ -21,10 +21,11 @@ class FormationsController:
     
 
 class TeamController:
-    def __init__(self, left=False, name=None) -> None:
+    def __init__(self, name, left=False, host="10.0.0.49" ) -> None:
         self.__team_model = TeamModel(left)
-        if name is not None and TeamModel.team_exists(name):
-            self.__team_model.set_team_info(TeamModel.load_from_disk(name))
+        self.__host = host
+        self.__team_name = name
+        self.__team_model.set_team_info(TeamModel.load_from_network(self.__team_name, self.__host))
         self.__team_view = None
 
     def set_team_view(self, team_view)->None:
@@ -44,14 +45,11 @@ class TeamController:
         self.__team_model.update_side(left)
 
 class MatchController:
-    def __init__(self)->None:
+    def __init__(self, host_address)->None:
+        self.__host = host_address
         self.__match_model = MatchModel()
-        if self.__match_model.teams_exist():
-            self.__teams_controllers = [TeamController(True, self.__match_model.get_teams_list()[0]), 
-                                        TeamController(False, self.__match_model.get_teams_list()[1])]
-        else:
-            self.__teams_controllers = [TeamController(True), 
-                                        TeamController(False)]
+        self.__teams_controllers = [TeamController(self.__match_model.get_teams_list()[0], left=True, host=self.__host), 
+                                    TeamController(self.__match_model.get_teams_list()[1], left=False, host=self.__host)]
             
         self.__left =  True
         self.__start_button = None

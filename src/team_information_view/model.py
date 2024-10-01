@@ -4,7 +4,23 @@ import os
 from cfg.paths_config import __TEAMS_DIR__ , __KAFKA_CONFIG__
 from .kafka import KConsumer, KProducer
 from PyQt5.QtCore import QTimer
+import requests
+import time
 
+class NetworkClient:
+    def __init__(self):
+        self.url = None
+
+    def fetch_json(self, host, file_name):
+        self.url = f"http://{host}/player_tracking_shared_files/{file_name}.json"
+        try:
+            response = requests.get(self.url)
+            response.raise_for_status()  # Raise an error for bad responses
+            return response.json()  # Return the JSON data
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching data: {e}")
+            return None
+    
 
 class FormationModel:
     def __init__(self, formation)->None:
@@ -190,6 +206,16 @@ class TeamModel:
         __path = (__TEAMS_DIR__ / (name + '.json')).resolve().as_posix()
         with open(__path, 'r') as fp:
             return json.load(fp)
+        
+    @staticmethod
+    def load_from_network(name:str, host:str)->dict:
+        client = NetworkClient()
+        data = client.fetch_json(host, name)
+        while data is None:
+            print("Retrying in... (5s)")
+            time.sleep(5)
+            data = client.fetch_json(host, name)
+        return data
     
     @staticmethod
     def team_exists(name)->bool:
@@ -228,16 +254,26 @@ class TeamModel:
 
 
 class MatchModel:
-    def __init__(self)->None:
+    def __init__(self, host="10.0.0.49")->None:
         self.__current_teams = []
-        self.__path = (__TEAMS_DIR__ / 'current_teams.json').resolve().as_posix()
-
-        if self.teams_exist():
-            self.load_teams_list()
+        self.client = NetworkClient()
+        self.__host = host
+        self.__path = 'current_teams'
+        self.load_teams_list()
 
     def load_teams_list(self)->None:
-        with open(self.__path, 'r') as fp:
-            self.__current_teams = json.load(fp)['teams']
+        self.__data = self.client.fetch_json(self.__host, self.__path)
+        if self.__data is not None:
+            self.__current_teams = self.__data['teams']
+        else:
+            while self.__data is None:
+                print("Retrying in ... (5s)")
+                time.sleep(5)
+                self.__data = self.client.fetch_json(self.__host, self.__path)
+
+            self.__current_teams = self.__data['teams']
+
+            # print("Teams List Loaded from network", self.__current_teams)
 
     def get_teams_list(self)->list:
         return self.__current_teams

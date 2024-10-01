@@ -329,7 +329,7 @@ class PlayerIDAssociationApp(QWidget):
         self.__teams_widgets.append({})
         team_data = self.__match_controller.get_team_data(left)
         players = team_data.get('players')
-        current_index = 0 if left else 1
+        current_index = 0 if left else len(self.__teams_widgets)-1
 
         jersey_icon = SvgManipulator(0, team_data['color'])
         jersey_icon.setFixedSize(180, 100)
@@ -461,11 +461,11 @@ class PlayerIDAssociationApp(QWidget):
         self.bottom_layout.setContentsMargins(0,0,0,0)
         self.init_top_bar()
         # Initialize team A (Left Team)
-        self.init_team(True)
+        # self.init_team(True)
         # Initialize IDs grid
         self.init_ids_grid()
         # #Initialize Team B (Right Team)
-        # self.init_team(False)
+        self.init_team(False)
         # Image view
         self.image_label = ClickableLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
