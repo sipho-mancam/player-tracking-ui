@@ -294,7 +294,7 @@ class MatchModel:
         __path = (__TEAMS_DIR__ / 'current_teams.json').resolve().as_posix()
         return os.path.exists(__path)
 
-
+import pprint
 class TrackingDataModel:
     def __init__(self)->None:
         self.__kafka_consumer = KConsumer(__KAFKA_CONFIG__)
@@ -330,4 +330,5 @@ class TrackingDataModel:
         self.__tracking_data_current_state = data
 
     def publish_data(self)->None:
+        # pprint.pprint(self.__tracking_data_current_state)
         self.__kafka_producer.send_message('tracking-data-1', json.dumps(self.__tracking_data_current_state))
