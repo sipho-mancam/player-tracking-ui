@@ -1,10 +1,10 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QDockWidget, 
                              QPushButton, QHBoxLayout,QVBoxLayout, 
-                             QWidget, QTabWidget, QStatusBar, 
+                             QWidget, QTabWidget, QLabel,
                              QMenuBar, QAction, QDialog, QLineEdit, QDialogButtonBox, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QImage, QPixmap
 from tracking_interface import PlayerIDAssociationApp
 from team_information_view.controller import MatchController, DataAssociationsController
 from cfg.paths_config import __ASSETS_DIR__, __CONFIG_DIR__
@@ -15,7 +15,6 @@ def is_valid_ip(ip):
     # Regular expression for validating an IPv4 address
     pattern = r'^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$'
     return re.match(pattern, ip) is not None
-
 
 
 class ConfigUpdater:
@@ -53,10 +52,24 @@ class IPDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Enter IP")
         self.__layout = QVBoxLayout()
+        self.__heading_text = QLabel()
+        self.__splash = QLabel()
         self.__input_field = QLineEdit()
         self.__input_field.setPlaceholderText("Enter Host IP Address: 10.0.0.49")
+        self.__heading_text.setText("Player Tracking Start up Config")
+        self.__heading_text.setObjectName("splash-heading")
+        self.__heading_text.setStyleSheet("""
+                #splash-heading{
+                    font-weight:500;
+                    font-size: 20px;
+                }
+            """)
+        self.__layout.addWidget(self.__heading_text)
+        self.__layout.addWidget(self.__splash)
         self.__layout.addWidget(self.__input_field)
         self.ip_address = None
+
+        self.set_up_splash()
 
         self.__input_field.returnPressed.connect(self.accept_ip)
 
@@ -66,6 +79,11 @@ class IPDialog(QDialog):
         self.button_box.accepted.connect(self.accept_ip)
         self.__layout.addWidget(self.button_box)
         self.setLayout(self.__layout)
+
+    def set_up_splash(self)->None:
+        img = QImage((__ASSETS_DIR__ / "tracking_splash.jpg").resolve().as_posix())
+        self.__splash.setPixmap(QPixmap.fromImage(img))
+
 
     def check_accept(self)->None:
         text = self.__input_field.text()
@@ -97,7 +115,7 @@ if __name__ == "__main__":
     ip_dialog = IPDialog()
     if ip_dialog.exec_() == QDialog.Accepted:
         host_ip = ip_dialog.ip_address
-        print(host_ip)
+        print(f"Connecting to IP: {host_ip}...")
     else:
         sys.exit(-1)
 

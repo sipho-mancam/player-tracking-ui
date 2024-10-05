@@ -47,7 +47,7 @@ class TeamController:
 class MatchController:
     def __init__(self, host_address)->None:
         self.__host = host_address
-        self.__match_model = MatchModel()
+        self.__match_model = MatchModel(self.__host)
         self.__teams_controllers = [TeamController(self.__match_model.get_teams_list()[0], left=True, host=self.__host), 
                                     TeamController(self.__match_model.get_teams_list()[1], left=False, host=self.__host)]
             
