@@ -124,6 +124,7 @@ if __name__ == "__main__":
 
     match_controller = MatchController(host_ip)
     da_controller = DataAssociationsController()
+    da_controller.set_multi_view(True)
     da_controller.set_match_controller(match_controller)
 
     tracking_window = PlayerIDAssociationApp(match_controller)

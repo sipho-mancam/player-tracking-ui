@@ -147,6 +147,10 @@ class StateGenerator:
         self.__current_clicked = -1
         self.__default_color = (120, 120, 120)
         self.__frames_count = 0
+        self.__mult_view = False
+
+    def set_multi_view(self, multi_view)->None:
+        self.__mult_view = multi_view
 
     def get_frames_count(self)->int:
         return self.__frames_count
@@ -196,7 +200,8 @@ class StateGenerator:
         '''
         if self.__tracking_model.is_data_ready():
             self.state = []
-            tracking_data = self.__tracking_model.get_data()['tracks']
+            tracking_data_raw = self.__tracking_model.get_data()
+            tracking_data = tracking_data_raw['tracks']
             # Associated Tracks and Players already found
             for track in tracking_data:
                 id = track.get('tracking-id')
@@ -213,13 +218,18 @@ class StateGenerator:
                     obj['state'] = StateGenerator.CLICKED
                     break
 
+            tracking_data_raw['tracks'] = self.state
+            tracking_data_raw['multi_view'] = self.__mult_view
+            self.__tracking_model.update_tracking_data(tracking_data_raw)
+            self.__tracking_model.publish_data()
+
         return self.state
 
     def __create_default_state_object(self, track:dict)->None:
         return {
                     'track_id':track.get('tracking-id'),
                     'coordinates': track.get('coordinates'),
-                    'jersey_number':track.get('tracking-id'),
+                    'jersey_number':-1,
                     'team':'default',
                     'color':self.__default_color, 
                     'kit_color':track.get('kit_color'),
@@ -278,7 +288,12 @@ class DataAssociationsController:
         self.__timer = QTimer()
         self.__state_generator = None
         self.__state_object = []
+        self.__multi_view = False
         self.init()
+
+    def set_multi_view(self, m_view)->None:
+        self.__multi_view = m_view
+        self.__state_generator.set_multi_view(self.__multi_view)
 
     def init(self)->None:
         self.__timer.setInterval(20)

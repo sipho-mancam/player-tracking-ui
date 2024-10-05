@@ -326,5 +326,8 @@ class TrackingDataModel:
         self.__kafka_consumer.stop()
         self.__timer.stop()
 
-    def publish_data(self, data:dict)->None:
-        self.__kafka_producer.send_message('viz-data', json.dumps(data))
+    def update_tracking_data(self, data:dict)->None:
+        self.__tracking_data_current_state = data
+
+    def publish_data(self)->None:
+        self.__kafka_producer.send_message('tracking-data-1', json.dumps(self.__tracking_data_current_state))
