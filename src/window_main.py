@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
 from camera.controller import CamerasManager
-from tracking_interface import PlayerIDAssociationApp
+from tracking_interface import PlayerIDAssociationApp, EnableMultiViewDialog
 from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, FormationManagerView
 from team_information_view.controller import MatchController, DataAssociationsController
 from calibration.views import CalibrationPage
@@ -239,9 +239,19 @@ class MainWindow(QMainWindow):
         self.t_layout.addLayout(self.__buttons_layout)
         self.t_layout.addWidget(self.__match_view_w)
         self.__track_tab.setLayout(self.t_layout)
+
+    def open_multi_view_dialog(self)->bool:
+        mult_view = False
+        dialog = EnableMultiViewDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            mult_view = dialog.get_result()
+        return mult_view
     
     def enable_track_window(self)->None:
-        self.__tracking_window = PlayerIDAssociationApp(self.__match_controller, self.parentWidget())
+        m_view = self.open_multi_view_dialog()
+        self.__multi_view = m_view
+        self.__data_associations_controller.set_multi_view(self.__multi_view)
+        self.__tracking_window = PlayerIDAssociationApp(self.__match_controller, self.parentWidget(), multi_view=m_view)
         self.__tracking_window.show()
         self.open_button.setDisabled(True)
         if self.__data_associations_controller is not None:

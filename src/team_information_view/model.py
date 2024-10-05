@@ -259,6 +259,7 @@ class MatchModel:
         return os.path.exists(__path)
 
 
+from pprint import pprint
 class TrackingDataModel:
     def __init__(self)->None:
         self.__kafka_consumer = KConsumer(__KAFKA_CONFIG__)
@@ -290,5 +291,9 @@ class TrackingDataModel:
         self.__kafka_consumer.stop()
         self.__timer.stop()
 
-    def publish_data(self, data:dict)->None:
-        self.__kafka_producer.send_message('viz-data', json.dumps(data))
+    def update_tracking_data(self, data:dict)->None:
+        self.__tracking_data_current_state = data
+
+    def publish_data(self)->None:
+        # pprint(self.__tracking_data_current_state)
+        self.__kafka_producer.send_message('tracking-data-0', json.dumps(self.__tracking_data_current_state))

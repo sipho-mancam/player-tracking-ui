@@ -135,7 +135,6 @@ class MatchController:
     def set_start_button(self, start_button)->None:
         self.__start_button = start_button
 
-
 class StateGenerator:
     UNASSOCIATED = 0
     ASSOCIATED = 1
@@ -149,6 +148,10 @@ class StateGenerator:
         self.__current_clicked = -1
         self.__default_color = (120, 120, 120)
         self.__frames_count = 0
+        self.__multi_view = False
+
+    def set_multi_view(self, m_view)->None:
+        self.__multi_view = m_view
 
     def get_frames_count(self)->int:
         return self.__frames_count
@@ -198,7 +201,8 @@ class StateGenerator:
         '''
         if self.__tracking_model.is_data_ready():
             self.state = []
-            tracking_data = self.__tracking_model.get_data()['tracks']
+            tracking_data_raw = self.__tracking_model.get_data()
+            tracking_data = tracking_data_raw['tracks']
             # Associated Tracks and Players already found
             for track in tracking_data:
                 id = track.get('tracking-id')
@@ -214,14 +218,17 @@ class StateGenerator:
                 if id == self.__current_clicked:
                     obj['state'] = StateGenerator.CLICKED
                     break
-
+            tracking_data_raw['tracks'] = self.state
+            tracking_data_raw['multi_view'] =  self.__multi_view
+            self.__tracking_model.update_tracking_data(tracking_data_raw)
+            self.__tracking_model.publish_data()
         return self.state
 
     def __create_default_state_object(self, track:dict)->None:
         return {
                     'track_id':track.get('tracking-id'),
                     'coordinates': track.get('coordinates'),
-                    'jersey_number':track.get('tracking-id'),
+                    'jersey_number':-1,#track.get('tracking-id'),
                     'team':'default',
                     'color':self.__default_color, 
                     'kit_color':track.get('kit_color'),
@@ -280,6 +287,7 @@ class DataAssociationsController:
         self.__timer = QTimer()
         self.__state_generator = None
         self.__state_object = []
+        self.__multi_view = False
         self.init()
 
     def init(self)->None:
@@ -290,6 +298,11 @@ class DataAssociationsController:
     def set_match_controller(self, match_controller:MatchController)->None:
         self.__match_controller = match_controller
         self.__state_generator = StateGenerator(self.__match_controller, self.__tracking_model)
+        self.__state_generator.set_multi_view(self.__multi_view)
+
+    def set_multi_view(self, m_view:bool)->None:
+        self.__multi_view = m_view
+        self.__state_generator.set_multi_view(self.__multi_view)
 
     def get_current_state(self)->dict:
         return self.__state_object

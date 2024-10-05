@@ -1,7 +1,7 @@
 import sys
 import cv2
-from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QGridLayout, 
-                             QVBoxLayout, QHBoxLayout)
+from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton,
+                             QGridLayout, QVBoxLayout, QHBoxLayout, QDialog)
                             #  QDialog, QDialogButtonBox, QComboBox, QLineEdit)
 from PyQt5.QtGui import QImage, QPixmap, QColor, QPaintEvent, QPen, QBrush, QPainter
 from PyQt5.QtCore import Qt, QTimer
@@ -261,6 +261,37 @@ class RoundButton(QPushButton):
     
     def get_id(self)->int:
         return int(self.__id_text)
+class EnableMultiViewDialog(QDialog):
+    def __init__(self, parent=None)->None:
+        super().__init__(parent)
+        self.__yes_button = QPushButton("Yes")
+        self.__no_button = QPushButton("No")
+        self.__layout = QVBoxLayout()
+        self.setWindowTitle("Multi-View Config")
+        self.__buttons_layout = QHBoxLayout()
+        self.__buttons_layout.addWidget(self.__yes_button)
+        self.__buttons_layout.addWidget(self.__no_button)
+        self.__prompt_text = QLabel()
+        self.__prompt_text.setText("Do you want to open as mult-view?")
+        self.__layout.addWidget(self.__prompt_text)
+        self.__layout.addLayout(self.__buttons_layout)
+        self.setLayout(self.__layout)
+        self.__result = False
+        self.__yes_button.clicked.connect(self.yes)
+        self.__no_button.clicked.connect(self.no)
+
+
+    def yes(self)->None:
+        self.__result = True
+        self.accept()
+    
+    def no(self)->None:
+        self.__result = False
+        self.reject()
+        
+    def get_result(self)->bool:
+        return self.__result
+
 
 
 class PlayerIDAssociationApp(QWidget):
@@ -273,12 +304,13 @@ class PlayerIDAssociationApp(QWidget):
     CLICKED_COLOR = "clicked"
     HIGHLIGHT_COLOR = "highlight"
 
-    def __init__(self, match_controller:MatchController, parent=None):
+    def __init__(self, match_controller:MatchController, parent=None, multi_view=True):
         super().__init__(parent)
         self.cap = None
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
         self.__frame = None
+        self.__multi_view = multi_view
     
         self.__match_controller = match_controller
        
@@ -329,7 +361,7 @@ class PlayerIDAssociationApp(QWidget):
         self.__teams_widgets.append({})
         team_data = self.__match_controller.get_team_data(left)
         players = team_data.get('players')
-        current_index = 0 if left else 1
+        current_index = (0 if left else len(self.__teams_widgets)-1)
 
         jersey_icon = SvgManipulator(0, team_data['color'])
         jersey_icon.setFixedSize(180, 100)
@@ -465,7 +497,8 @@ class PlayerIDAssociationApp(QWidget):
         # Initialize IDs grid
         self.init_ids_grid()
         #Initialize Team B (Right Team)
-        self.init_team(False)
+        if not self.__multi_view:
+            self.init_team(False)
         # Image view
         self.image_label = ClickableLabel(self)
         self.image_label.setAlignment(Qt.AlignCenter)
