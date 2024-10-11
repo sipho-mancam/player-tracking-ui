@@ -24,7 +24,7 @@ class TeamController:
     def __init__(self, name, left=False, host="10.0.0.49" ) -> None:
         self.__team_model = TeamModel(left)
         self.__host = host
-        self.__team_name = name
+        self.__team_name = 'teams/'+name
         self.__team_model.set_team_info(TeamModel.load_from_network(self.__team_name, self.__host))
         self.__team_view = None
 
