@@ -168,7 +168,7 @@ class PlayerItem(QWidget):
         # On Click, we hide the text and show a text label to set the text
         self.__text.hide()
         self.__text_edit.show()
-        self.__text_edit.setText(self.__player_name)
+        self.__text_edit.setText(str(self.__player_name))
         self.__text_edit.setFocus()
         self.__updated = True
         return super().mousePressEvent(event)
@@ -321,7 +321,7 @@ class TeamLoadWidget(QWidget):
         self.__whats_missing = ""
         self.__data = {}
 
-        if self.__match_controller:
+        if self.__match_controller and self.__match_controller.get_team_data(self.__left_team):
             team  = self.__match_controller.get_team_data(self.__left_team)
             self.__team_list = [PlayerItem(player.get('position'), player.get('jersey_number'), team.get('color')) for i, player in enumerate(team['players'])]
             self.__subs_list = [PlayerItem(sub.get('position'), sub.get('jersey_number'), team.get('color')) for sub in team['subs']]
@@ -439,10 +439,13 @@ class TeamLoadWidget(QWidget):
         
         if not text.isspace() and len(text) > 0:
             self.__team_name = text
+            self.__match_controller.upload_message(0x01, {"previous_name": self.__team_name_text, 'current_name':self.__team_name, 'left':self.__left_team})
             self.__team_name_text.setText(self.__team_name)
 
         self.__team_name_text.show()
         self.__change_team_name.setEnabled(True)
+
+        
     
     def save_information(self):
         # Go through all the players and check if they are updated,
@@ -469,11 +472,10 @@ class TeamLoadWidget(QWidget):
 
 
         if clear_to_save:
+            
             if len(self.__team_color) == 0:
                 self.__whats_missing = "Please make sure to select the team's color"
                 clear_to_save = False
-
-        clear_to_save = self.__match_controller.is_match_init()
 
         if self.__formations_dd.currentText() == self.__formations_default_text and self.__match_controller.is_match_init():
             self.__formations_dd.setCurrentText(self.__team_formation)
@@ -515,9 +517,11 @@ class TeamLoadWidget(QWidget):
             msgBox.setText(self.__whats_missing)
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec_()
+            self.__whats_missing = ""
 
     def select_team_color(self)->None:
         color = QColorDialog.getColor()
+        print(f"Team Color is Valid: {color.isValid()}, Color Name: {color.name()}")
         if color.isValid():
             self.__team_color = color.name()
             for player in self.__team_list:
@@ -581,7 +585,6 @@ class TeamViewWidget(QWidget):
             self.arrange_left_players()
         else:
             self.arrange_right_players()
-
         self.add_team_stats()
 
         self.__main_layout.addLayout(self.__layout)

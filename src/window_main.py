@@ -160,21 +160,14 @@ class MainWindow(QMainWindow):
         self.__cameras_tab.setLayout(qHorizantal_layout)
 
     def load_team_a(self)->None:
-        if self.load_view_a is None:
-            self.load_view_a = TeamLoadWidget(True,self.__match_controller, self.parentWidget())
-            # self.load_view_a.set_match_controller(self.__match_controller)
-            self.load_view_a.show()
-        else:
-            self.load_view_a.show()
-
-
+        del self.load_view_a
+        self.load_view_a = TeamLoadWidget(True, self.__match_controller, self.parentWidget())
+        self.load_view_a.show()
+       
     def load_team_b(self)->None:
-        if self.load_view_b is None:
-            self.load_view_b = TeamLoadWidget(False, self.__match_controller, self.parentWidget())
-            # self.load_view_b.set_match_controller(self.__match_controller)
-            self.load_view_b.show()
-        else:
-            self.load_view_b.show()
+        del self.load_view_b
+        self.load_view_b = TeamLoadWidget(False, self.__match_controller, self.parentWidget())
+        self.load_view_b.show()
         
     def swap_teams(self)->None:
         # Send an instruction to the controller to swap teams

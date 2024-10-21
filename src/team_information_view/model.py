@@ -10,21 +10,21 @@ class FormationModel:
     def __init__(self, formation)->None:
         self.__name = formation.get('name')
         self.__positions = formation.get('positions')
-        self.__formation_path = (__TEAMS_DIR__ / (self.__name + ".json" )).resolve().as_posix()
+        self.__formation_path = (__TEAMS_DIR__ / ('formations/'+ self.__name + ".json" )).resolve().as_posix()
         self.__transform_flip()
         # self.write_to_disk(
 
     @staticmethod
     def load_from_disk(name)->dict:
         __name = name
-        path = (__TEAMS_DIR__ / (__name + ".json" )).resolve().as_posix()
+        path = (__TEAMS_DIR__ / ('formations/'+__name + ".json" )).resolve().as_posix()
         with open(path, 'r') as fp:
             data = json.load(fp)
             return data
 
     @staticmethod
     def formation_exists(name)->bool:
-        path = (__TEAMS_DIR__ / (name + ".json" )).resolve().as_posix()
+        path = (__TEAMS_DIR__ / ('formations/'+ name + ".json" )).resolve().as_posix()
         return os.path.exists(path)
 
     def __transform_flip(self):
@@ -69,8 +69,12 @@ class FormationsModel:
         self.init()
 
     def init(self)->None:
-        self.load_formations_list()
-        self.initialize_formation_models()
+        if os.path.exists(self.__list_path):
+            self.load_formations_list()
+            self.initialize_formation_models()
+        else:
+            with open(self.__list_path, 'w') as fp:
+                return 
 
     def load_formations_list(self)->None:
         with open(self.__list_path, 'r') as fp:
@@ -181,19 +185,19 @@ class TeamModel:
         self.init_team()
 
     def write_to_disk(self)->None:
-        self.__path = (__TEAMS_DIR__ / (self.__name + '.json')).resolve().as_posix()
+        self.__path = (__TEAMS_DIR__ / ("teams/" + self.__name + '.json')).resolve().as_posix()
         with open(self.__path, 'w') as fp:
             json.dump(self.__team_data, fp)
 
     @staticmethod
     def load_from_disk(name:str)->dict:
-        __path = (__TEAMS_DIR__ / (name + '.json')).resolve().as_posix()
+        __path = (__TEAMS_DIR__ / ('teams/'+name + '.json')).resolve().as_posix()
         with open(__path, 'r') as fp:
             return json.load(fp)
     
     @staticmethod
     def team_exists(name)->bool:
-        __path = (__TEAMS_DIR__ / (name + '.json')).resolve().as_posix()
+        __path = (__TEAMS_DIR__ / ('teams/'+name + '.json')).resolve().as_posix()
         return os.path.exists(__path)
     
     def update_players(self, player_info:list[dict])->None:
@@ -204,14 +208,16 @@ class TeamModel:
                     break;
 
     def get_team_info(self)->dict:
+        if self.__team_data is None:
+            return None
+        
         self.__team_data['players'] = []
         for j, player in enumerate(self.__players):
             self.__team_data['players'].insert(j, player.get_player_data())
         return self.__team_data
 
     def init_team(self)->None:
-        if self.__is_init:
-            return 
+        self.__players = []
         for player in self.__starting_line_up:
             p = PlayerInfoModel(player.get('jersey_number'), player.get('position'))
             coord = self.__formation.find_player_position(player.get('position'))
@@ -242,8 +248,11 @@ class MatchModel:
     def get_teams_list(self)->list:
         return self.__current_teams
     
-    def add_team(self, name)->None:
-        self.__current_teams.insert(0, name)
+    def add_team(self, name, left_side:bool)->None:
+        if left_side:
+            self.__current_teams[0] =  name
+        else:
+            self.__current_teams[1] = name
     
     def save_teams(self)->None:
         self.write_teams()
@@ -285,11 +294,10 @@ class TrackingDataModel:
     def update(self)->None:
         if self.__kafka_consumer.is_data_ready():
             print(self.__kafka_consumer.getTrackingData())
-        # else:
-        #     print("Waiting ....")
+
     def stop(self)->None:
         self.__kafka_consumer.stop()
-        self.__timer.stop()
+        # self.__timer.stop()
 
     def update_tracking_data(self, data:dict)->None:
         self.__tracking_data_current_state = data

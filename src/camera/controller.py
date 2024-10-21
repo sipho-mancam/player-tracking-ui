@@ -35,7 +35,7 @@ class CameraController:
         if self.__worker is not None:
             self.__stop_event.set()
             self.__worker.join()
-            self.__model.stop()
+            # self.__model.stop()
 
 class CamerasManager:
     
@@ -62,7 +62,12 @@ class CamerasManager:
             self.__controllers[idx].registerController(controller)
 
     def stop(self)->None:
-        self.__input_manager.stop()
-        for controller in self.__controllers:
+        for i, controller in enumerate(self.__controllers):
+            print(f"Stopping Controller {i} ...")
             controller.stop()
+            print(f"Controller {i}, stopped ...")
+
+        self.__input_manager.stop()
+
+       
         

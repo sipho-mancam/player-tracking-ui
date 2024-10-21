@@ -62,6 +62,7 @@ class MatchController:
         self.__instruction_table = {}
         self.__formations_controller = FormationsController()
         self.__instruction_table[0x00] = self.swap_teams
+        self.__instruction_table[0x01] = self.create_new_team
         self.__teams_init = self.is_match_init()
 
 
@@ -92,6 +93,21 @@ class MatchController:
             self.__teams_controllers[0].update_side(self.__left)
             self.__teams_controllers[1].update_side(not self.__left)
 
+            # Update the read file
+            self.__match_model.add_team(self.__teams_controllers[0].get_team_info()['name'], True)
+            self.__match_model.add_team(self.__teams_controllers[1].get_team_info()['name'], False)
+            self.__match_model.save_teams()
+
+
+    def create_new_team(self, data:dict)->None:
+        current_name = data.get('current_name')
+        left = data.get('left')
+        team_data = self.__teams_controllers[0 if left else 1].get_team_info()
+        team_data['name'] = current_name
+        self.set_team(left, team_data)
+        self.__match_model.save_teams()
+
+
     def set_team(self, left_team:bool, data:dict)->None:
         if left_team:
             self.__teams_controllers[0].set_team_info(data)
@@ -100,7 +116,7 @@ class MatchController:
             self.__teams_controllers[1].set_team_info(data)
             self.__team_b_set = True
         
-        self.__match_model.add_team(data['name'])
+        self.__match_model.add_team(data['name'], left_team)
 
         if (self.__team_a_set and self.__team_b_set) and (not self.__teams_init):
             self.__start_button.setEnabled(True)

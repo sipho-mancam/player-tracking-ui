@@ -450,6 +450,9 @@ class PlayerIDAssociationApp(QWidget):
         # This method updates the UI state everytime when the Match Controller is updated.
         self.__match_data = match_info
         for idx, team in enumerate(match_info):
+            if self.__multi_view:
+                idx = 0
+                
             self.__teams_widgets[idx]['team_name'].setText(team.get('name'))
             self.__teams_widgets[idx]['jersey_icon'].set_color(team.get('color'))
             self.__teams_widgets[idx]['jersey_icon'].rerender()

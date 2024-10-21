@@ -128,7 +128,6 @@ class CameraModel(BInputSource):
         self.__event_object.acquire(True)
         self.__event_object.wait_for(self._is_updated)
         self._data_updated = False
-        # self.__event_object.release()
         return self.__current_frame
     
     def update_stream_data(self) -> None:
