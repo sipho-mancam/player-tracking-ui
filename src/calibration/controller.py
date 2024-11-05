@@ -9,7 +9,7 @@ class CamCalibController:
         self.updated = False
 
     def update_frame(self, frame)->None:
-        self.__current_frame = frame
+        self.__current_frame = frame.copy()
         if self.__view is not None and not self.updated:
             self.__view.update_frame(self.__current_frame)
             self.updated = True

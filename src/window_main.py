@@ -12,6 +12,7 @@ from calibration.controller import CalibrationManager
 from cfg.paths_config import __ASSETS_DIR__
 from system_control.controller import ColorPaletteController
 from system_control.palette import ColorPickerApp
+from recording.view import RecordingConfigDialog
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -61,6 +62,11 @@ class MainWindow(QMainWindow):
         self.__palette_triggered = False
         self.__palette_colors = None
         self.__palette_controller = None
+        self.recording_dialog = None
+        self.__camera_models = None
+    
+    def load_camera_models(self, models:list)->None:
+        self.__camera_models = models
 
     def update_ui(self)->None:
         if self.__palette_triggered:
@@ -87,6 +93,11 @@ class MainWindow(QMainWindow):
 
     def set_data_associations_controller(self, da_c)->None:
         self.__data_associations_controller = da_c
+
+    def open_recording_config(self)->None:
+        if self.recording_dialog is None:
+            self.recording_dialog = RecordingConfigDialog(self)
+        self.recording_dialog.show()
            
     def init_menue(self)->None:
         # Create a menu bar
@@ -96,6 +107,7 @@ class MainWindow(QMainWindow):
         start_recording = QAction('&Record', self)
         start_recording.setShortcut('Ctrl+R')
         start_recording.setStatusTip('Start recording all 3 streams')
+        start_recording.triggered.connect(self.open_recording_config)
         file_menu.addAction(start_recording)
 
         team_info_menu = self.menuBar.addMenu('&Team')

@@ -38,7 +38,6 @@ class CameraController:
             # self.__model.stop()
 
 class CamerasManager:
-    
     def __init__(self, views_list:list[CameraWidget])->None:
         self.__views_list = views_list
         self.frame_size = 15089340
@@ -56,6 +55,9 @@ class CamerasManager:
 
         for controller in self.__controllers:
             controller.start()
+
+    def get_cameras_model(self)->list[CameraModel]:
+        return self.__input_manager.get_frames_model()
 
     def registerCameraInputControllers(self, controllers:list)->None:
         for idx, controller in enumerate(controllers):

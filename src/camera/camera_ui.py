@@ -78,16 +78,11 @@ class CameraWidget(QDockWidget):
 
     def init(self)->None:
         self.__main_layout = QVBoxLayout(self)
-        # self.__heading_text = QLabel(f"{self.__window_name}")
-        # self.__heading_text.setStyleSheet(self.__bold_text)
-        
         self.__frame_container = QLabel()
         self.__frame_container.setPixmap(QPixmap(self.__ui_width, self.__ui_height))
         self.__frame_container.setStyleSheet("background-color:black;")
         
         # Details List:
-        # list_heading = QLabel("Details", self)
-        # list_heading.setStyleSheet(self.__bold_text)
         self.__details_list = QVBoxLayout(self)
         self.__name = QLabel(f"Name : {self.__window_name}", self)
         self.__frame_size = QLabel("Frame Size: 2048 x 1942", self)
@@ -113,7 +108,6 @@ class CameraWidget(QDockWidget):
         self.__details_list.addWidget(self.__shared_memory)
         self.__details_list.setSpacing(0)
         self.__details_list.setContentsMargins(20,10,0,0)
-
         self.__details_widget.setLayout(self.__details_list)
 
         self.__frame_rate_graph = QLabel()
@@ -122,9 +116,7 @@ class CameraWidget(QDockWidget):
         self.__camera_canvas = LineGraphCanvas(self)
 
         # Add Widgets to the main layout
-        # self.__main_layout.addWidget(self.__heading_text)
         self.__main_layout.addWidget(self.__frame_container)
-        # self.__main_layout.addWidget(list_heading)
         self.__main_layout.addWidget(self.__details_widget)
         self.__main_layout.addWidget(self.__camera_canvas)
         self.__main_layout.setSpacing(0)

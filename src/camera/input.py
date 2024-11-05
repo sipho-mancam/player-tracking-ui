@@ -102,6 +102,7 @@ class CameraModel(BInputSource):
         self.__current_frame = None
         self.__frame_count = 0
         self._data_updated = False
+        self._dimensions = None
 
         self._stream_data = {}
         self._stream_data['name'] = "Camera "+str(stream_id)
@@ -111,11 +112,21 @@ class CameraModel(BInputSource):
         self._stream_data['frame_size'] =  (1942, 2048)
         self._stream_data['Memory Name'] =  "default mem from VIS"
 
-    def update_frame(self, frame)->None:
+    def update_frame(self, frame:cv.Mat)->None:
         self.__current_frame = frame
         self.__frame_count += 1
         self.update_stream_data()
         self._data_updated  = True
+        if self.__current_frame is not None and self._dimensions is None:
+            height, width, _ = self.__current_frame.shape
+            self._dimensions = (width, height)
+            self._stream_data['frame_size'] = (width, height)
+
+    def get_dimensions(self)->tuple:
+        return self._dimensions
+
+    def next_frame(self)->cv.Mat|None:
+        return self.__current_frame.copy()
 
     def _is_updated(self)->bool:
         return self._data_updated
@@ -191,13 +202,16 @@ class InputManager:
             current_frame_rate = round(1e3/((end_time- start_time)*1e3),1)
 
     def stop(self)->None:
+        self.__stop_event.set()
+        self._data_ready_event.release()
+        
         if self.worker is not None:
             self.__stop_event.set()
             self.worker.join() 
             return 
-        self.__stop_event.set()
-        self._data_ready_event.release()
-
+        
+    def get_frames_model(self)->list[CameraModel]:
+        return self.__camera_models
      
     def __del__(self)->None:
         self.stop()
