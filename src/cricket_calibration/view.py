@@ -4,7 +4,7 @@ from PyQt5.QtGui import (QPixmap, QImage, QMouseEvent, QPainter, QPen, QBrush,
 from PyQt5.QtWidgets import (QWidget, QLabel, QVBoxLayout,
                              QHBoxLayout, QSizePolicy, QPushButton, QDialog, QLayout)
 import cv2 as cv
-from controller import CalibrationController
+from .controller import CalibrationController
 import numpy as np
 from pathlib import Path
 from cfg.paths_config import __WHITE_BG__, __GREEN_BG__
@@ -27,7 +27,14 @@ class PolygonDrawer(QLabel):
         self.update_frame(frame)
         self.setPixmap(self.pixmap_)
         self._controller = controller
-        
+
+    def clear_calibration(self)->None:
+        self.__alignment_points.clear()
+        self.__normalized_poly_points.clear()
+        self._controller.set_alignment_pts(self.normalize_alignment_points())
+        self.default_polygon()
+        self._controller.update_src_poly(self.generate_updated_points())
+        self.update_polygon()
     
     def toggle_alignment_points(self)->None:
         self._add_alignment_points = not self._add_alignment_points
@@ -532,6 +539,7 @@ class MergedSpaceView(QLabel):
 
         unified_space = self._controller.get_unified_space()
         if unified_space.shape[0] == 0:
+            self.setPixmap(self._original_pix_map.copy())
             return
         
         unified_space *= (width, height)
@@ -602,12 +610,15 @@ class CalibrationPage(QWidget):
 
         self._clear_calib_layout = QHBoxLayout()
         self._clear_calib_button = QPushButton("Clear Calibration")
+        self._clear_calib_button.clicked.connect(self.clearCalibration)
         self._clear_calib_button.setFixedWidth(150)
         self._clear_calib_button.setFixedHeight(40)
+
         self._save_calib_button = QPushButton("Save Calibration")
         self._save_calib_button.setFixedWidth(150)
         self._save_calib_button.setFixedHeight(40)
         self._save_calib_button.clicked.connect(self.save_calibration)
+        
         self._status_message = QLabel("Status: Boundary Alignment")
         # self._status_message.setFixedWidth(200)
         self._status_message.setFixedHeight(40)
@@ -640,6 +651,12 @@ class CalibrationPage(QWidget):
         
         if self.merged_space is not None:
             self.merged_space.update_view()
+
+    def clearCalibration(self)->None:
+        if self.__current_frame_view is not None:
+            self.__current_frame_view.clear_calibration() 
+        self.updateUI()
+
 
     def toggle_add_alignment(self):
         if self.__current_frame_view:

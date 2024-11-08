@@ -83,6 +83,7 @@ class CameraCalibrationModel:
     
     def update_dst_transformed_points(self, points:np.ndarray)->None:
         if points.shape[0] == 0:
+            self._transformed_dst_pts = np.array([], dtype=np.float32)
             return
         
         scaled_alignment_pts = points.copy() * self._shape

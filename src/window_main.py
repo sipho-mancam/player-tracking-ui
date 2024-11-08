@@ -4,16 +4,17 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
 from camera.controller import CamerasManager
-from tracking_interface import PlayerIDAssociationApp, EnableMultiViewDialog
+from tracking_interface import EnableMultiViewDialog
 from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, FormationManagerView
-from team_information_view.controller import MatchController, DataAssociationsController
-from calibration.views import CalibrationPage
+from team_information_view.controller import MatchController
+# from calibration.views import CalibrationPage
 from calibration.controller import CalibrationManager
 from cfg.paths_config import __ASSETS_DIR__
 from system_control.controller import ColorPaletteController
 from system_control.palette import ColorPickerApp
 from recording.view import RecordingConfigDialog
 from cricket_view.view import CricketTrackingWidget
+from cricket_calibration.view import CalibrationPage
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -26,7 +27,7 @@ class MainWindow(QMainWindow):
         self.__status_bar = QStatusBar(self)
         self.t_layout = None
         self.__tracking_window = None
-        
+
         #Create tab pages
         self.__cameras_tab = QWidget()
         self.__config_tab = QWidget()
@@ -38,7 +39,7 @@ class MainWindow(QMainWindow):
                 CameraWidget("Camera 2", self),
                 CameraWidget("Camera 3", self)
             ]
-        self.__calibration_page = CalibrationPage()
+        self.__calibration_page = None#CalibrationPage()
         # Add pages to the tabes
         self.__tabs.addTab(self.__cameras_tab, "Cameras")
         self.__tabs.addTab(self.__track_tab, "Track")
@@ -52,7 +53,7 @@ class MainWindow(QMainWindow):
         self.__match_controller = None
         self.__formations_view = None
         self.__data_associations_controller = None
-        
+
         self.init_pages()
         self.init_menue()
         self.setCentralWidget(self.__tabs)
@@ -66,15 +67,17 @@ class MainWindow(QMainWindow):
         self.__palette_controller = None
         self.recording_dialog = None
         self.__camera_models = None
-    
+        self.__calibration_window = None
+
     def load_camera_models(self, models:list)->None:
         self.__camera_models = models
+        self.__calibration_page = CalibrationPage(self.__camera_models)
+        self.create_calib_page()
 
     def update_ui(self)->None:
         if self.__palette_triggered:
             palette = ColorPickerApp(self.__palette_colors)
             if palette.exec() == QDialog.Accepted:
-                # print(palette.selected_colors)
                 self.__palette_triggered = False
                 if self.__palette_controller is not None:
                     self.__palette_controller.update_selected_color(palette.selected_colors)
@@ -85,7 +88,7 @@ class MainWindow(QMainWindow):
     def set_color_palette(self, colors):
         self.__palette_colors = colors
         self.__palette_triggered = True
-      
+
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
         if self.__match_controller is not None:
@@ -100,7 +103,7 @@ class MainWindow(QMainWindow):
         if self.recording_dialog is None:
             self.recording_dialog = RecordingConfigDialog(self)
         self.recording_dialog.show()
-           
+
     def init_menue(self)->None:
         # Create a menu bar
         self.menuBar = self.menuBar()
@@ -135,26 +138,25 @@ class MainWindow(QMainWindow):
 
     def get_camera_widgets(self)->list[CameraWidget]:
         return self.__camera_docked_widgets
-    
+
     def get_calibration_page(self)->CalibrationPage:
         return self.__calibration_page
-    
+
     def set_tracking_window(self, window:QWidget)->None:
         self.__tracking_window = window
 
     def init_pages(self)->None:
         # Other pages here...
         self.create_track_page()
-        self.create_calib_page()
+        # self.create_calib_page()
         self.create_cameras_page()
-        
+
     def create_calib_page(self)->None:
         self.calib_layout = QVBoxLayout()
         self.calib_layout.addWidget(self.__calibration_page)
-
         self.calib_layout.setAlignment(Qt.AlignTop)
         self.__calib_tab.setLayout(self.calib_layout)
-        
+
 
     def open_formation_manager(self)->None:
         if self.__formations_view is None:
@@ -164,7 +166,7 @@ class MainWindow(QMainWindow):
             self.__formations_view.show()
         else:
             self.__formations_view.show()
-    
+
 
     def create_cameras_page(self)->None:
         # Create first dock widget
@@ -177,17 +179,17 @@ class MainWindow(QMainWindow):
         del self.load_view_a
         self.load_view_a = TeamLoadWidget(True, self.__match_controller, self.parentWidget())
         self.load_view_a.show()
-       
+
     def load_team_b(self)->None:
         del self.load_view_b
         self.load_view_b = TeamLoadWidget(False, self.__match_controller, self.parentWidget())
         self.load_view_b.show()
-        
+
     def swap_teams(self)->None:
         # Send an instruction to the controller to swap teams
         self.__match_controller.upload_message(0x00)
         self.update()
-        
+
     def create_track_page(self)->None:
         self.t_layout = QVBoxLayout()
         self.__buttons_layout = QHBoxLayout()
@@ -228,7 +230,7 @@ class MainWindow(QMainWindow):
         self.__buttons_layout.addWidget(self.__swap_teams, stretch=0)
         self.__buttons_layout.addWidget(self.__load_team_a, stretch=0)
         self.__buttons_layout.addWidget(self.__load_team_b, stretch=0)
-        
+
         self.__buttons_layout.setSpacing(0)
         self.__buttons_layout.setAlignment(Qt.AlignLeft)
 
@@ -236,13 +238,13 @@ class MainWindow(QMainWindow):
         self.__match_view_w.setStyleSheet(
                         """
                            #match-view{
-                            background-image:url(""" + bg_path + """); 
-                            background-repeat:no-repeat; 
+                            background-image:url(""" + bg_path + """);
+                            background-repeat:no-repeat;
                             background-position:center;
                             border:1px solid black;
                            }"""
                         )
-    
+
         self.t_layout.addLayout(self.__buttons_layout)
         self.t_layout.addWidget(self.__match_view_w)
         self.__track_tab.setLayout(self.t_layout)
@@ -253,7 +255,7 @@ class MainWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             mult_view = dialog.get_result()
         return mult_view
-    
+
     def enable_track_window(self)->None:
         # m_view = self.open_multi_view_dialog()
         # self.__multi_view = m_view
@@ -263,11 +265,11 @@ class MainWindow(QMainWindow):
         self.open_button.setDisabled(True)
         # if self.__data_associations_controller is not None:
             # self.__tracking_window.set_data_controller(self.__data_associations_controller)
-    
+
     def closeEvent(self, event)->None:
         if self.__tracking_window is not None:
             self.__tracking_window.close()
-    
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -276,22 +278,18 @@ if __name__ == "__main__":
     color_pallete_controller = ColorPaletteController()
     color_pallete_controller.set_view(main_window)
     main_window.register_pallete_controller(color_pallete_controller)
-    
-    calibration_manager = CalibrationManager()
-    calibration_manager.register_frame_view(main_window.get_calibration_page())
+
+    # calibration_manager = CalibrationManager()
+    # calibration_manager.register_frame_view(main_window.get_calibration_page())
 
     cameras_manager = CamerasManager(main_window.get_camera_widgets())
-    cameras_manager.registerCameraInputControllers(calibration_manager.get_camera_controllers())
-    
+    # cameras_manager.registerCameraInputControllers(calibration_manager.get_camera_controllers())
+    main_window.load_camera_models(cameras_manager.get_cameras_model())
+
     match_controller = MatchController()
-    da_controller = DataAssociationsController()
-    da_controller.set_match_controller(match_controller)
 
     main_window.set_match_controller(match_controller)
-    main_window.set_data_associations_controller(da_controller)
     main_window.show()
-    
     app.exec_()
-    da_controller.stop()
+
     cameras_manager.stop()
-    
