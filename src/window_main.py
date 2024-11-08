@@ -1,5 +1,8 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QPushButton, QHBoxLayout,QVBoxLayout, QWidget, QTabWidget, QStatusBar, QMenuBar, QAction, QDialog
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QDockWidget, 
+                             QPushButton, QHBoxLayout, QVBoxLayout, 
+                             QWidget, QTabWidget, QStatusBar, 
+                             QMenuBar, QAction, QDialog)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
@@ -7,13 +10,11 @@ from camera.controller import CamerasManager
 from tracking_interface import EnableMultiViewDialog
 from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, FormationManagerView
 from team_information_view.controller import MatchController
-# from calibration.views import CalibrationPage
-from calibration.controller import CalibrationManager
-from cfg.paths_config import __ASSETS_DIR__
+from cfg.paths_config import __ASSETS_DIR__, __CRICKET_STYLES__
 from system_control.controller import ColorPaletteController
 from system_control.palette import ColorPickerApp
 from recording.view import RecordingConfigDialog
-from cricket_view.view import CricketTrackingWidget
+from cricket_view.view import CricketTrackingWidget, load_style_sheet
 from cricket_calibration.view import CalibrationPage
 
 class MainWindow(QMainWindow):
@@ -72,6 +73,7 @@ class MainWindow(QMainWindow):
     def load_camera_models(self, models:list)->None:
         self.__camera_models = models
         self.__calibration_page = CalibrationPage(self.__camera_models)
+        self.__calibration_page.setStyleSheet(load_style_sheet(__CRICKET_STYLES__))
         self.create_calib_page()
 
     def update_ui(self)->None:
@@ -199,7 +201,7 @@ class MainWindow(QMainWindow):
         self.__swap_teams  = QPushButton(" Switch Sides")
 
         ico_path = (__ASSETS_DIR__ / 'play-24.ico').resolve().as_posix()
-        bg_path = (__ASSETS_DIR__ / 'soccer_pitch_poles.png').resolve().as_posix()
+        bg_path = (__ASSETS_DIR__ / 'cricket_match_view_bg.png').resolve().as_posix()
         icon = QIcon(ico_path)
         self.open_button.setFixedSize(100, 30)
         # self.open_button.setFixedHeight(24)
@@ -233,19 +235,20 @@ class MainWindow(QMainWindow):
         self.__buttons_layout.setSpacing(0)
         self.__buttons_layout.setAlignment(Qt.AlignLeft)
 
-        # self.__match_view_w = MatchViewWidget()
-        # self.__match_view_w.setStyleSheet(
-        #                 """
-        #                    #match-view{
-        #                     background-image:url(""" + bg_path + """);
-        #                     background-repeat:no-repeat;
-        #                     background-position:center;
-        #                     border:1px solid black;
-        #                    }"""
-        #                 )
+        self.__match_view_w = MatchViewWidget()
+        self.__match_view_w.setStyleSheet(
+                        """
+                           #match-view{
+                            background-image:url(""" + bg_path + """); 
+                            background-repeat:no-repeat;
+                            background-position:center;
+                            border:1px solid black;
+                           }"""
+                        )
 
         self.t_layout.addLayout(self.__buttons_layout)
-        # self.t_layout.addWidget(self.__match_view_w)
+        self.t_layout.setAlignment(Qt.AlignTop)
+        self.t_layout.addWidget(self.__match_view_w, Qt.AlignVCenter)
         self.__track_tab.setLayout(self.t_layout)
 
     def open_multi_view_dialog(self)->bool:
@@ -260,6 +263,7 @@ class MainWindow(QMainWindow):
         # self.__multi_view = m_view
         # self.__data_associations_controller.set_multi_view(self.__multi_view)
         self.__tracking_window = CricketTrackingWidget()
+        # self.__tracking_window.setStyleSheet(load_style_sheet(__CRICKET_STYLES__))
         self.__tracking_window.show()
         self.open_button.setDisabled(True)
         # if self.__data_associations_controller is not None:

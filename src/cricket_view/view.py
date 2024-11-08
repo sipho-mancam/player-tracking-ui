@@ -312,6 +312,7 @@ class CricketTrackingWidget(QWidget):
     def __init__(self, parent = None):
         super().__init__(parent)
         self.setWindowTitle("Cricket Tracking")
+        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)      
         self.__controller = DataAssociationsController()
         self.__header_buttons_layout = QHBoxLayout()
         self.__main_layout = QGridLayout()

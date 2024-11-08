@@ -236,12 +236,8 @@ class PlayerView(QWidget):
         self.__position_w.setAlignment(Qt.AlignHCenter)
         self.__position_w.setObjectName("position-view")
         self.__position_w.setStyleSheet("#position-view{font-weight:500; color:black;}")
-
-        # self.__icon_w.setPixmap(self.__prepare_icon())
-        # self.__icon_w.setPixmap(self.__prepare_icon())
         self.__icon_w = SvgManipulator(self.__jersey_number, self.__color)#self.__prepare_icon()
         self.__icon_w.setObjectName("icon-view")
-        # self.__icon_w.setStyleSheet("#icon-view{border:1px solid black;}")
         self.__icon_w.setFixedSize(100, 80)
 
         self.__number_w.setText(f"{self.__jersey_number}")
@@ -253,7 +249,6 @@ class PlayerView(QWidget):
         self.__layout.addWidget(self.__position_w)
         self.__layout.addWidget(self.__icon_w)
         self.__layout.addWidget(self.__number_w)
-
         self.setLayout(self.__layout)
 
     def __prepare_icon(self)->QLabel:
@@ -264,7 +259,6 @@ class PlayerView(QWidget):
         player_stats = PlayerStatsDialog({'jersey_number':self.__jersey_number, 'Position':self.__position})
         player_stats.show()
         player_stats.exec_()
-
         return super().mousePressEvent(event)
     
     def paintEvent(self, paint_event)->None:
@@ -328,7 +322,6 @@ class TeamLoadWidget(QWidget):
             self.__team_color = team.get('color')
             self.__team_formation = team.get('formation')
             self.__team_name = team.get('name')
-            # self.__formations_dd.setCurrentText(self.__team_formation)
         else:
             self.__team_list = [PlayerItem(self.__positions[i]) for i in range(11)]
             self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
@@ -413,13 +406,10 @@ class TeamLoadWidget(QWidget):
      
         self.__save_button.setFixedWidth(200)
         self.__save_button.clicked.connect(self.save_information)
-
         self.__team_color_button.setFixedWidth(200)
         self.__team_color_button.clicked.connect(self.select_team_color)
-
         self.__bottom_layout.addWidget(self.__save_button, alignment=Qt.AlignLeft)
         self.__bottom_layout.addWidget(self.__team_color_button, alignment=Qt.AlignRight)
-
         self.__main_layout.addLayout(self.__team_name_layout)
         self.__main_layout.addWidget(self.__line_up_title)
         self.__main_layout.addLayout(self.__layout)
@@ -436,12 +426,10 @@ class TeamLoadWidget(QWidget):
     def change_team_name(self)->None:
         text = self.__team_name_edit.text()
         self.__team_name_edit.hide()
-        
         if not text.isspace() and len(text) > 0:
             self.__team_name = text
             self.__match_controller.upload_message(0x01, {"previous_name": self.__team_name_text, 'current_name':self.__team_name, 'left':self.__left_team})
             self.__team_name_text.setText(self.__team_name)
-
         self.__team_name_text.show()
         self.__change_team_name.setEnabled(True)
 
@@ -534,11 +522,23 @@ class TeamLoadWidget(QWidget):
 class TeamViewWidget(QWidget):
     def __init__(self, color, left = True, parent=None)->None:
         super().__init__(parent)
-        self.__positions = ["GK", "LOB", "LCB", "RCB", "ROB", "LW", "CM", "DCM", "RW", "ACM", "CF"]
+        self.__positions = [
+            "WKT",  # Wicketkeeper
+            "SLP",  # Slip
+            "GUL",  # Gully
+            "PTN",  # Point
+            "COV",  # Cover
+            "MID",  # Mid-off
+            "MDF",  # Mid-on
+            "MID",  # Midwicket
+            "SQG",  # Square Leg
+            "FNL",   # Fine Leg
+            "BOW"
+        ]
         self.__players = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         self.__color = color
         self.__formation = "4-4-2"
-        self.__team_name = "Kaizer Chiefs"
+        self.__team_name = "DP LIONS"
         self.__left_team = left
         self.__team_color = color
        
@@ -680,7 +680,7 @@ class MatchViewWidget(QWidget):
         self.set_background()
 
     def set_background(self)->None:
-        path = (__ASSETS_DIR__ / 'soccer_pitch_poles.png').resolve().as_posix()
+        path = (__ASSETS_DIR__ / 'cricket_match_view_bg.png').resolve().as_posix()
         self.setObjectName("match-view")
         # Load and resize the background image
         self.background_image = QPixmap(path)
