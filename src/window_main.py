@@ -148,7 +148,6 @@ class MainWindow(QMainWindow):
     def init_pages(self)->None:
         # Other pages here...
         self.create_track_page()
-        # self.create_calib_page()
         self.create_cameras_page()
 
     def create_calib_page(self)->None:
@@ -234,19 +233,19 @@ class MainWindow(QMainWindow):
         self.__buttons_layout.setSpacing(0)
         self.__buttons_layout.setAlignment(Qt.AlignLeft)
 
-        self.__match_view_w = MatchViewWidget()
-        self.__match_view_w.setStyleSheet(
-                        """
-                           #match-view{
-                            background-image:url(""" + bg_path + """);
-                            background-repeat:no-repeat;
-                            background-position:center;
-                            border:1px solid black;
-                           }"""
-                        )
+        # self.__match_view_w = MatchViewWidget()
+        # self.__match_view_w.setStyleSheet(
+        #                 """
+        #                    #match-view{
+        #                     background-image:url(""" + bg_path + """);
+        #                     background-repeat:no-repeat;
+        #                     background-position:center;
+        #                     border:1px solid black;
+        #                    }"""
+        #                 )
 
         self.t_layout.addLayout(self.__buttons_layout)
-        self.t_layout.addWidget(self.__match_view_w)
+        # self.t_layout.addWidget(self.__match_view_w)
         self.__track_tab.setLayout(self.t_layout)
 
     def open_multi_view_dialog(self)->bool:
@@ -279,15 +278,9 @@ if __name__ == "__main__":
     color_pallete_controller.set_view(main_window)
     main_window.register_pallete_controller(color_pallete_controller)
 
-    # calibration_manager = CalibrationManager()
-    # calibration_manager.register_frame_view(main_window.get_calibration_page())
-
     cameras_manager = CamerasManager(main_window.get_camera_widgets())
-    # cameras_manager.registerCameraInputControllers(calibration_manager.get_camera_controllers())
     main_window.load_camera_models(cameras_manager.get_cameras_model())
-
     match_controller = MatchController()
-
     main_window.set_match_controller(match_controller)
     main_window.show()
     app.exec_()
