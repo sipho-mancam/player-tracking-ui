@@ -13,6 +13,8 @@ from cfg.paths_config import __ASSETS_DIR__
 from system_control.controller import ColorPaletteController
 from system_control.palette import ColorPickerApp
 from recording.view import RecordingConfigDialog
+from cricket_view.view import CricketTrackingWidget
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -253,14 +255,14 @@ class MainWindow(QMainWindow):
         return mult_view
     
     def enable_track_window(self)->None:
-        m_view = self.open_multi_view_dialog()
-        self.__multi_view = m_view
-        self.__data_associations_controller.set_multi_view(self.__multi_view)
-        self.__tracking_window = PlayerIDAssociationApp(self.__match_controller, self.parentWidget(), multi_view=m_view)
+        # m_view = self.open_multi_view_dialog()
+        # self.__multi_view = m_view
+        # self.__data_associations_controller.set_multi_view(self.__multi_view)
+        self.__tracking_window = CricketTrackingWidget()
         self.__tracking_window.show()
         self.open_button.setDisabled(True)
-        if self.__data_associations_controller is not None:
-            self.__tracking_window.set_data_controller(self.__data_associations_controller)
+        # if self.__data_associations_controller is not None:
+            # self.__tracking_window.set_data_controller(self.__data_associations_controller)
     
     def closeEvent(self, event)->None:
         if self.__tracking_window is not None:
