@@ -9,6 +9,10 @@ class StateGenerator:
     ASSOCIATED = 1
     CLICKED = 2
     ALERT = 3
+    STATE_SET = 1
+    STATE_CLEAR = 0
+    MODE_HIGHLIGHT = 0
+    MODE_HIDE = 1
     def __init__(self, tracking_model:TrackingDataModel)->None:
         self.state = []
         self.__tracking_model = tracking_model
@@ -17,6 +21,8 @@ class StateGenerator:
         self.__default_color = (120, 120, 49)
         self.__frames_count = 0
         self.__multi_view = False
+        self.__is_distance = False
+        self.__distance_object = {}
 
     def set_multi_view(self, m_view)->None:
         self.__multi_view = m_view
@@ -44,6 +50,12 @@ class StateGenerator:
             if player.get('team') == team_name:
                 player['color'] = color
 
+    def is_distance_object_available(self)->bool:
+        return self.__is_distance
+
+    def get_distance_object(self)->dict:
+        return self.__distance_object.copy()
+
     def generate_state(self)->list[dict]:
         # First we find all the associated players and update their coordinates
         '''
@@ -54,6 +66,7 @@ class StateGenerator:
             jersey_number: int,
             team: str, #Name of the team
             color: (R:int, G:int, B:int),
+            mode: int[HIGHTLIGHT, HIDE]
             options:{
                 alert: bool,
                 highlight: bool,
@@ -69,6 +82,13 @@ class StateGenerator:
             self.state = []
             tracking_data_raw = self.__tracking_model.get_data()
             tracking_data = tracking_data_raw['tracks']
+
+            if 'distance_object' in tracking_data_raw:
+                self.__is_distance = True
+                self.__distance_object = tracking_data_raw['distance_object']
+                # print(self.__distance_object)
+            else:
+                self.__is_distance = False
             # Associated Tracks and Players already found
             for track in tracking_data:
                 id = track.get('tracking-id')
@@ -99,6 +119,8 @@ class StateGenerator:
                     'color':self.__default_color, 
                     'kit_color':track.get('kit_color'),
                     'state':StateGenerator.UNASSOCIATED,
+                    'mode': track.get('mod'),
+                    'mode_state': track.get('state_object'),
                     'options':{
                         'alert':False,
                         'highlight':False,
@@ -117,6 +139,8 @@ class StateGenerator:
                     'color':player.get('color'), 
                     'kit_color':track.get('kit_color'),
                     'state': StateGenerator.ASSOCIATED,
+                    'mode': track.get('mod'),
+                    'mode_state': track.get('state_object'),
                     'options':{
                         'alert': player.get('alert') if player.get('alert') else False,
                         'highlight':False
@@ -162,6 +186,16 @@ class DataAssociationsController:
         # self.__timer.setInterval(20)
         # self.__timer.timeout.connect(self.update_state)
         # self.__timer.start()
+
+    def is_distance_object_available(self)->bool:
+        if self.__state_generator is None:
+            return False
+        return self.__state_generator.is_distance_object_available()
+
+    def get_distance_object(self)->dict:
+        if self.__state_generator is None:
+            return {}
+        return self.__state_generator.get_distance_object()
        
     def set_match_controller(self)->None:
         self.__state_generator = StateGenerator(self.__tracking_model)

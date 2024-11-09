@@ -92,13 +92,14 @@ class CricketOvalWindow(QLabel):
 
         font = painter.font()
         font.setBold(True)
+        font.setPixelSize(48)
         painter.setFont(font)
         text_offset = 80
         leg_text_position = QPoint(center_x - radius_inner - text_offset, center_y)
-        painter.drawText(leg_text_position, "Leg")
+        painter.drawText(leg_text_position, "Off")
 
         leg_text_position = QPoint(center_x + radius_inner + 30, center_y)
-        painter.drawText(leg_text_position, "Off")
+        painter.drawText(leg_text_position, "Leg")
 
         rect_color = QBrush(QColor("#d9b99b"))
         painter.setBrush(rect_color)
@@ -113,6 +114,12 @@ class CricketOvalWindow(QLabel):
         if details is None:
             return
 
+        # if details.get('mode_state') != StateGenerator.STATE_CLEAR:
+        #     if details.get('mode') == StateGenerator.MODE_HIGHLIGHT:
+        #         color = Qt.blue
+        #     elif details.get('mode') ==StateGenerator.MODE_HIDE:
+        #         color = Qt.purple
+
         default_brush = painter.brush()
         default_pen = painter.pen()
 
@@ -123,6 +130,14 @@ class CricketOvalWindow(QLabel):
 
         status = details.get('state')
         if status == StateGenerator.UNASSOCIATED:
+            if details.get('mode_state') != StateGenerator.STATE_CLEAR:
+                if details.get('mode') == StateGenerator.MODE_HIGHLIGHT:
+                    color = (0, 0, 255)
+                    painter.setBrush(QColor(*color))
+                elif details.get('mode') ==StateGenerator.MODE_HIDE:
+                    color = (255, 255, 255) 
+                    painter.setBrush(QColor(*color))
+
             painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
             point.setX(point.x()-self.radius+round(self.radius*0.01))
@@ -134,7 +149,13 @@ class CricketOvalWindow(QLabel):
             painter.drawText(point, f"{track_id}".zfill(2))
         
         elif status == StateGenerator.ASSOCIATED:
-            color =  details.get('color')
+            
+            color =  details.get('color')   
+            if details.get('mode_state') != StateGenerator.STATE_CLEAR:
+                if details.get('mode') == StateGenerator.MODE_HIGHLIGHT:
+                    color = (255, 0, 0)
+                elif details.get('mode') ==StateGenerator.MODE_HIDE:
+                    color = (255, 255, 255) 
             jersey_number = details.get('jersey_number')
             brush = QBrush(QColor(*color))
             pen = QPen(QColor(*color))
@@ -190,6 +211,17 @@ class CricketOvalWindow(QLabel):
         painter.setBrush(brush)
         painter.setRenderHint(QPainter.Antialiasing)
         current_state = self.__controller.get_current_state()
+        if self.__controller.is_distance_object_available():
+            distance_object = self.__controller.get_distance_object()
+            print(distance_object)
+            if distance_object is not None:
+                id1 = distance_object.get('player_id_1')
+                id2 = distance_object.get('player_id_2')
+                track_1 = self.find_track(id1, current_state)
+                track_2 = self.find_track(id2, current_state)
+                if track_1 is not None and track_2 is not None:
+                    self.draw_line(track_1, track_2, painter)
+
         dets_list = self.__generate_points(current_state)
         self.__objects_state.update_state(current_state)
     
@@ -197,6 +229,18 @@ class CricketOvalWindow(QLabel):
             self.__draw_point(point, painter, current_state[i])
         painter.end()
         self.setPixmap(pix_map)
+
+    def find_track(self, id, tracks:list)->dict|None:
+        for track in tracks:
+            if track.get('track_id') == id:
+                return track
+            
+    def draw_line(self, track1, track2, painter:QPainter)->None:
+        points = self.__generate_points([track1, track2])
+        painter.drawLine(points[0], points[1])
+
+
+        
 
     def mousePressEvent(self, ev:QMouseEvent):
         if ev.button() == Qt.LeftButton:

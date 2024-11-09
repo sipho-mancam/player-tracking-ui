@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QDockWidget,
                              QPushButton, QHBoxLayout, QVBoxLayout, 
                              QWidget, QTabWidget, QStatusBar, 
                              QMenuBar, QAction, QDialog)
+
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon
 from camera.camera_ui import CameraWidget
@@ -94,7 +95,7 @@ class MainWindow(QMainWindow):
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
         if self.__match_controller is not None:
-            self.__match_view_w.set_match_controller(self.__match_controller)
+            # self.__match_view_w.set_match_controller(self.__match_controller)
             self.__match_controller.set_start_button(self.open_button)
             self.open_button.setEnabled(self.__match_controller.is_match_init())
 

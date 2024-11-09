@@ -17,7 +17,7 @@ class PolygonDrawer(QLabel):
         self.selected_point = None
         self.point_radius = 10  # Radius of the circles around points
         self.saved_points = []  # List to store saved points as tuples
-        self.__size = (1248, 936)#(round(1920*.65), round(1080*.7))
+        self.__size = (940, 705)#(round(1920*.65), round(1080*.7))
         self.__current_frame = cv.resize(frame, self.__size)
         self.__normalized_poly_points = []
         self.__alignment_points = []
@@ -103,6 +103,7 @@ class PolygonDrawer(QLabel):
     def save_points(self):
         """Save current polygon points as a list of tuples."""
         self.saved_points = [(point.x(), point.y()) for point in self.points]
+        # QMessageBox.info
         print("Saved Points:", self.saved_points)  # Print the saved points
 
     def mousePressEvent(self, event):
@@ -119,7 +120,9 @@ class PolygonDrawer(QLabel):
 
         if self.is_interactive:
             pos = self.mapFrom(self, event.pos())
+            
             for i, point in enumerate(self.points):
+                # print((pos-point).manhattanLength(), self.point_radius)
                 if (pos - point).manhattanLength() <= self.point_radius:
                     self.selected_point = i  # Select the point for dragging
                     break
@@ -157,8 +160,6 @@ class PolygonDrawer(QLabel):
             painter.setBrush(brush)
             for point in self.points:
                 painter.drawEllipse(point, self.point_radius, self.point_radius)
-
-
             self.draw_points(painter)
 
             painter.end()
@@ -183,7 +184,7 @@ class PolygonDrawer(QLabel):
     def update_frame(self, frame:cv.Mat)->None:
         # Every call to this function has implications that we are changing cameras
         self.__current_frame = frame.copy()
-        self.__current_frame = cv.resize(self.__current_frame, (round(1920*.65), round(1080*.7)))
+        self.__current_frame = cv.resize(self.__current_frame, self.__size)
         self.__update_pix_map()
         self.update_polygon()
 
