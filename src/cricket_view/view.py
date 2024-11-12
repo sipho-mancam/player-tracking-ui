@@ -213,7 +213,7 @@ class CricketOvalWindow(QLabel):
         current_state = self.__controller.get_current_state()
         if self.__controller.is_distance_object_available():
             distance_object = self.__controller.get_distance_object()
-            print(distance_object)
+            # print(distance_object)
             if distance_object is not None:
                 id1 = distance_object.get('player_id_1')
                 id2 = distance_object.get('player_id_2')

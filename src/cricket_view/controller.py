@@ -9,10 +9,12 @@ class StateGenerator:
     ASSOCIATED = 1
     CLICKED = 2
     ALERT = 3
+
     STATE_SET = 1
     STATE_CLEAR = 0
-    MODE_HIGHLIGHT = 0
-    MODE_HIDE = 1
+    MODE_DEFAULT = 0
+    MODE_HIGHLIGHT = 1
+    MODE_HIDE = 2
     def __init__(self, tracking_model:TrackingDataModel)->None:
         self.state = []
         self.__tracking_model = tracking_model

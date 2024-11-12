@@ -1,7 +1,8 @@
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtWidgets import (QLabel, QLineEdit, QPushButton, QWidget, QApplication, 
                             QVBoxLayout, QGridLayout, QHBoxLayout, QSizePolicy, 
-                            QSpacerItem, QComboBox, QColorDialog, QMessageBox, QDialog, QDialogButtonBox, QStyleOption, QStyle)
+                            QSpacerItem, QComboBox, QColorDialog, QMessageBox, 
+                            QDialog, QDialogButtonBox, QStyleOption, QStyle, QCheckBox)
 from PyQt5.QtSvg import (QSvgWidget, QSvgRenderer)
 from PyQt5.QtGui import QImage, QMouseEvent, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtXml import QDomDocument
@@ -298,24 +299,35 @@ class TeamLoadWidget(QWidget):
         self.__subs_title = QLabel("Substitues")
         self.__line_up_title = QLabel("Starting Line-up")
         self.__save_button = QPushButton("Save")
-        self.__formations_dd = QComboBox()
+        self.__formations_dd = QCheckBox("Fielding Team")
         self.__formations_default_text = "Select Formation"
         self.__team_color_button = QPushButton("Select Team Color")
         self.__bottom_layout = QHBoxLayout()
-       
         self.__change_team_name = QPushButton("Change Name")
-
         self.__left_team = left_team
         self.__match_controller = controller
-        self.__positions = ["GK", "LOB", "LCB", "RCB", "ROB", "LW", "CM", "DCM", "RW", "ACM", "CF"]
+        self.__positions = [
+            "WKT",  # Wicketkeeper
+            "SLP",  # Slip
+            "GUL",  # Gully
+            "PTN",  # Point
+            "COV",  # Cover
+            "MID",  # Mid-off
+            "MDF",  # Mid-on
+            "MID",  # Midwicket
+            "SQG",  # Square Leg
+            "FNL",   # Fine Leg
+            "BOW"
+        ]
 
-        self.__team_name = "Kaizer Chiefs"
+        self.__team_name = "DP Lions"
         self.__team_formation = ""
         self.__team_color = ""
         self.__whats_missing = ""
         self.__data = {}
+        self.__ui_init = False
 
-        if self.__match_controller and self.__match_controller.get_team_data(self.__left_team):
+        if self.__ui_init:
             team  = self.__match_controller.get_team_data(self.__left_team)
             self.__team_list = [PlayerItem(player.get('position'), player.get('jersey_number'), team.get('color')) for i, player in enumerate(team['players'])]
             self.__subs_list = [PlayerItem(sub.get('position'), sub.get('jersey_number'), team.get('color')) for sub in team['subs']]
@@ -325,25 +337,23 @@ class TeamLoadWidget(QWidget):
         else:
             self.__team_list = [PlayerItem(self.__positions[i]) for i in range(11)]
             self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
-        
-        self.__formation_controller = None if self.__match_controller is None else self.__match_controller.get_formations_controller()
 
         self.setObjectName("team-show")
         self.setLayout(self.__main_layout)
         self.init()
         self.setFixedSize(self.sizeHint())
 
-    def showEvent(self, show_event)->None:
+    # def showEvent(self, show_event)->None:
         
-        while self.__formations_dd.count() > 1:
-            x = self.__formations_dd.count()
-            for i in range(1, x, 1):
-                self.__formations_dd.removeItem(i)
+    #     while self.__formations_dd.count() > 1:
+    #         x = self.__formations_dd.count()
+    #         for i in range(1, x, 1):
+    #             self.__formations_dd.removeItem(i)
             
-        if self.__formation_controller is not None:
-            for i, form_name in enumerate(self.__formation_controller.get_formations_list()):  
-                self.__formations_dd.insertItem(i+1, form_name)
-        super().showEvent(show_event)
+    #     if self.__formation_controller is not None:
+    #         for i, form_name in enumerate(self.__formation_controller.get_formations_list()):  
+    #             self.__formations_dd.insertItem(i+1, form_name)
+    #     super().showEvent(show_event)
 
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
@@ -369,9 +379,6 @@ class TeamLoadWidget(QWidget):
 
         self.__change_team_name.setFixedSize(100, 30)
         self.__change_team_name.clicked.connect(self.team_name_clicked)
-
-        self.__formations_dd.addItem(self.__formations_default_text)
-        self.__formations_dd.setFixedSize(200, 30)
 
         self.__team_name_layout.addWidget(self.__team_name_text)
         self.__team_name_layout.addWidget(self.__team_name_edit)
@@ -403,7 +410,6 @@ class TeamLoadWidget(QWidget):
             self.__subs_layout.addWidget(sub, row, col)
 
         self.__subs_main_layout.addLayout(self.__subs_layout)
-     
         self.__save_button.setFixedWidth(200)
         self.__save_button.clicked.connect(self.save_information)
         self.__team_color_button.setFixedWidth(200)
