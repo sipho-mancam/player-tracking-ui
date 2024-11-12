@@ -256,7 +256,7 @@ class CricketOvalWindow(QLabel):
 
 class FieldersGridView(QWidget):
     NUMBER_OF_FIELDERS = 10
-    def __init__(self, controller:DataAssociationsController , text_title,  parent = None)->None:
+    def __init__(self, controller:DataAssociationsController, match_controller, text_title,  parent = None)->None:
         super().__init__(parent)
         self.__field_positions = [
             "WKT",  # Wicketkeeper
@@ -266,22 +266,23 @@ class FieldersGridView(QWidget):
             "COV",  # Cover
             "MID",  # Mid-off
             "MDF",  # Mid-on
-            "MID",  # Midwicket
-            "SQG",  # Square Leg
+            "MIW",  # Midwicket
+            "SQL",  # Square Leg
             "FNL"   # Fine Leg
         ]
-        self.__fielder_positions_names = [
-            "Wicket-keeper",
-            "Slip",
-            "Gully",
-            "Point",
-            "Cover",
-            "Mid-off",
-            "Mid-on",
-            "Midwicket",
-            "Square Leg",
-            "Fine Leg"
-        ]
+        self.__fielder_positions_names = {
+            "WKT":"Wicket-keeper",
+            "SLP":"Slip",
+            "GUL":"Gully",
+            "PTN":"Point",
+            "COV":"Cover",
+            "MID":"Mid-off",
+            "MDF":"Mid-on",
+            "MIW":"Midwicket",
+            "SQL":"Square Leg",
+            "FNL":"Fine Leg"
+        }
+        self.__match_controller = match_controller
 
         self.__text_title = QLabel(text_title)
         self.__text_title.setObjectName("text_title")
@@ -306,10 +307,13 @@ class FieldersGridView(QWidget):
         self.__current_selected_id = id
        
     def initUI(self)->None:
+        team = self.__match_controller.get_fielding_team_info()
+        players = team.get("players")
         for i, position in enumerate(self.__field_positions):
-            btn = ButtonWithID(f"{position}", {"id":int(i), "jersey_number":i, "color":"#ff00ea", "team":"Test Team", 
-                                               'player':{"jersey_number":i, "color":"#ff00ea", "team":"Test Team"}})
-            btn.setToolTip(self.__fielder_positions_names[i])
+            player = players[i]
+            btn = ButtonWithID(f"{player.get('position')}", {"id":player.get('track_id'), "jersey_number":player.get("jersey_number"), "color":player.get('color'), "team":player.get("team"), 
+                                               'player':player})
+            btn.setToolTip(self.__fielder_positions_names[player.get("position")])
             self.__fielders_buttons_widgets.append(btn)
 
         for i in range(FieldersGridView.NUMBER_OF_FIELDERS):
@@ -353,16 +357,17 @@ class FieldersGridView(QWidget):
 
 
 class CricketTrackingWidget(QWidget):
-    def __init__(self, parent = None):
+    def __init__(self, controller, parent = None):
         super().__init__(parent)
         self.setWindowTitle("Cricket Tracking")
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)      
         self.__controller = DataAssociationsController()
         self.__header_buttons_layout = QHBoxLayout()
+        self.__match_controller = controller
         self.__main_layout = QGridLayout()
         self.__buttons_layout = QVBoxLayout()
         self.__cricket_view_map = CricketOvalWindow(self.__controller)
-        self.__fielders_grid = FieldersGridView(self.__controller, "Fielders")
+        self.__fielders_grid = FieldersGridView(self.__controller, self.__match_controller, "Fielders")
         self.__cricket_view_map.registerIDReceiver(self.__fielders_grid.update_current_selected_id)
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)

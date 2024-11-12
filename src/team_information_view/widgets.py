@@ -1,15 +1,14 @@
-from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QLabel, QLineEdit, QPushButton, QWidget, QApplication, 
                             QVBoxLayout, QGridLayout, QHBoxLayout, QSizePolicy, 
-                            QSpacerItem, QComboBox, QColorDialog, QMessageBox, 
+                             QColorDialog, QMessageBox, 
                             QDialog, QDialogButtonBox, QStyleOption, QStyle, QCheckBox)
-from PyQt5.QtSvg import (QSvgWidget, QSvgRenderer)
-from PyQt5.QtGui import QImage, QMouseEvent, QPixmap, QPainter, QPen, QColor
+from PyQt5.QtSvg import (QSvgRenderer)
+from PyQt5.QtGui import QMouseEvent, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtXml import QDomDocument
 from pathlib import Path
 import sys
-import os
-import pprint
+from .controller import MatchController
 
 __ASSETS_DIR__ = Path(".\\assets")
 
@@ -285,26 +284,24 @@ class PlayerView(QWidget):
        
 
 class TeamLoadWidget(QWidget):
-    def __init__(self, left_team=True, controller=None, parent=None)->None:
+    def __init__(self, fielding_team, controller:MatchController=None, parent=None)->None:
         super().__init__(parent)
         self.setWindowTitle("Load Team Information")
         self.__main_layout = QVBoxLayout(self)
         self.__team_name_layout = QHBoxLayout()
         self.__layout = QGridLayout()
         self.__subs_main_layout = QHBoxLayout()
-        self.__sub_right_space = QSpacerItem(200, 200, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.__subs_layout = QGridLayout()
         self.__team_name_edit = QLineEdit()
         self.__team_name_text = QLabel()
         self.__subs_title = QLabel("Substitues")
         self.__line_up_title = QLabel("Starting Line-up")
         self.__save_button = QPushButton("Save")
-        self.__formations_dd = QCheckBox("Fielding Team")
-        self.__formations_default_text = "Select Formation"
+        self.__fielding_team = QCheckBox("Fielding Team")
         self.__team_color_button = QPushButton("Select Team Color")
         self.__bottom_layout = QHBoxLayout()
         self.__change_team_name = QPushButton("Change Name")
-        self.__left_team = left_team
+        self.__is_fielding_team = fielding_team
         self.__match_controller = controller
         self.__positions = [
             "WKT",  # Wicketkeeper
@@ -314,51 +311,60 @@ class TeamLoadWidget(QWidget):
             "COV",  # Cover
             "MID",  # Mid-off
             "MDF",  # Mid-on
-            "MID",  # Midwicket
-            "SQG",  # Square Leg
-            "FNL",   # Fine Leg
+            "MIW",  # Midwicket
+            "SQL",  # Square Leg
+            "FNL",
             "BOW"
         ]
 
         self.__team_name = "DP Lions"
-        self.__team_formation = ""
         self.__team_color = ""
         self.__whats_missing = ""
         self.__data = {}
         self.__ui_init = False
-
-        if self.__ui_init:
-            team  = self.__match_controller.get_team_data(self.__left_team)
-            self.__team_list = [PlayerItem(player.get('position'), player.get('jersey_number'), team.get('color')) for i, player in enumerate(team['players'])]
-            self.__subs_list = [PlayerItem(sub.get('position'), sub.get('jersey_number'), team.get('color')) for sub in team['subs']]
-            self.__team_color = team.get('color')
-            self.__team_formation = team.get('formation')
-            self.__team_name = team.get('name')
-        else:
-            self.__team_list = [PlayerItem(self.__positions[i]) for i in range(11)]
-            self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
+        self.__fielding_team.setDisabled(True)
 
         self.setObjectName("team-show")
         self.setLayout(self.__main_layout)
+
+        self.initPlayerWidgets()
         self.init()
         self.setFixedSize(self.sizeHint())
 
-    # def showEvent(self, show_event)->None:
-        
-    #     while self.__formations_dd.count() > 1:
-    #         x = self.__formations_dd.count()
-    #         for i in range(1, x, 1):
-    #             self.__formations_dd.removeItem(i)
-            
-    #     if self.__formation_controller is not None:
-    #         for i, form_name in enumerate(self.__formation_controller.get_formations_list()):  
-    #             self.__formations_dd.insertItem(i+1, form_name)
-    #     super().showEvent(show_event)
+    def initPlayerWidgets(self)->None:
+        if self.__is_fielding_team:
+            if self.__match_controller.is_fielding_team_init():
+                team = self.__match_controller.get_fielding_team_info() 
+                # print(f"Fielding Team: {team}")
+                self.__team_list = [PlayerItem(player.get('position'), player.get('jersey_number'), team.get('color'))
+                                for i, player in enumerate(team['players'])]
+                self.__subs_list = [PlayerItem(sub.get('position'), sub.get('jersey_number'), team.get('color')) 
+                                    for sub in team['subs']]
+                self.__team_color = team.get('color')
+                self.__team_name = team.get('name')
+            else:
+                self.__team_list = [PlayerItem(self.__positions[i], i) for i in range(11)]
+                self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
+        else:
+            if self.__match_controller.is_bowling_team_init():
+                team = self.__match_controller.get_bowling_team_info()
+                # print(f"Bowling Team: {team}")
+                self.__team_list = [PlayerItem(player.get('position'), player.get('jersey_number'), team.get('color'))
+                                for i, player in enumerate(team['players'])]
+                self.__subs_list = [PlayerItem(sub.get('position'), sub.get('jersey_number'), team.get('color')) 
+                                    for sub in team['subs']]
+                self.__team_color = team.get('color')
+                self.__team_name = team.get('name')
+            else:
+                self.__team_list = [PlayerItem(self.__positions[i], i) for i in range(11)]
+                self.__subs_list = [PlayerItem("SUB") for _ in range(5)]
+
+    def init_data(self)->None:
+        if self.__match_controller.is_match_init():
+            pass
 
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
-        self.__formation_controller = self.__match_controller.get_formations_controller()
-        
    
     def init(self)->None:
         self.__team_name_text.setText(self.__team_name)
@@ -379,11 +385,13 @@ class TeamLoadWidget(QWidget):
 
         self.__change_team_name.setFixedSize(100, 30)
         self.__change_team_name.clicked.connect(self.team_name_clicked)
+      
+        self.__fielding_team.setChecked(self.__is_fielding_team)
 
         self.__team_name_layout.addWidget(self.__team_name_text)
         self.__team_name_layout.addWidget(self.__team_name_edit)
         self.__team_name_layout.addWidget(self.__change_team_name)
-        self.__team_name_layout.addWidget(self.__formations_dd)
+        self.__team_name_layout.addWidget(self.__fielding_team)
         self.__team_name_layout.setAlignment(Qt.AlignLeft)
         self.__team_name_layout.setContentsMargins(0,0,0,0)
      
@@ -434,7 +442,7 @@ class TeamLoadWidget(QWidget):
         self.__team_name_edit.hide()
         if not text.isspace() and len(text) > 0:
             self.__team_name = text
-            self.__match_controller.upload_message(0x01, {"previous_name": self.__team_name_text, 'current_name':self.__team_name, 'left':self.__left_team})
+            self.__match_controller.upload_message(0x01, {"previous_name": self.__team_name_text, 'current_name':self.__team_name, 'fielding':self.__is_fielding_team})
             self.__team_name_text.setText(self.__team_name)
         self.__team_name_text.show()
         self.__change_team_name.setEnabled(True)
@@ -442,40 +450,9 @@ class TeamLoadWidget(QWidget):
         
     
     def save_information(self):
-        # Go through all the players and check if they are updated,
-        clear_to_save = True
-        for player in self.__team_list:
-            if not player.is_updated():
-                clear_to_save = False
-                self.__whats_missing = "Please make sure all the players in the starting line up are added."
-                break
-        
-        if clear_to_save:
-            for sub in self.__subs_list:
-                if not sub.is_updated():
-                    clear_to_save = False
-                    self.__whats_missing = "Please make sure all the subs are added."
-         
-        if clear_to_save:
-            formation = self.__formations_dd.currentText()
-            if formation == self.__formations_default_text:
-                clear_to_save  = False
-                self.__whats_missing = "Please select formation"
-            else:
-                self.__team_formation = formation
-
-
-        if clear_to_save:
-            
-            if len(self.__team_color) == 0:
-                self.__whats_missing = "Please make sure to select the team's color"
-                clear_to_save = False
-
-        if self.__formations_dd.currentText() == self.__formations_default_text and self.__match_controller.is_match_init():
-            self.__formations_dd.setCurrentText(self.__team_formation)
-        else:
-            self.__team_formation = self.__formations_dd.currentText()
-
+        # Go through all the players and check if they are updated
+        # This variable is used for validation
+        clear_to_save =True
         if clear_to_save:
             # Collect the data into an object and save
             for idx, player in enumerate(self.__team_list):
@@ -496,10 +473,10 @@ class TeamLoadWidget(QWidget):
 
             self.__data['name'] = self.__team_name
             self.__data['color'] = self.__team_color
-            self.__data['formation'] = self.__team_formation
+            self.__data['fielding'] = self.__fielding_team.isChecked()
             # Update the controller and send a signal 
             if self.__match_controller is not None:
-                self.__match_controller.set_team(self.__left_team, self.__data) 
+                self.__match_controller.set_team_info(self.__team_name, self.__data) 
             self.hide()
 
         else:
@@ -515,7 +492,6 @@ class TeamLoadWidget(QWidget):
 
     def select_team_color(self)->None:
         color = QColorDialog.getColor()
-        print(f"Team Color is Valid: {color.isValid()}, Color Name: {color.name()}")
         if color.isValid():
             self.__team_color = color.name()
             for player in self.__team_list:
@@ -526,7 +502,7 @@ class TeamLoadWidget(QWidget):
             
 
 class TeamViewWidget(QWidget):
-    def __init__(self, color, left = True, parent=None)->None:
+    def __init__(self, controller:MatchController, color, fielding_team, parent=None)->None:
         super().__init__(parent)
         self.__positions = [
             "WKT",  # Wicketkeeper
@@ -536,19 +512,18 @@ class TeamViewWidget(QWidget):
             "COV",  # Cover
             "MID",  # Mid-off
             "MDF",  # Mid-on
-            "MID",  # Midwicket
-            "SQG",  # Square Leg
-            "FNL",   # Fine Leg
+            "MIW",  # Midwicket
+            "SQL",  # Square Leg
+            "FNL",
             "BOW"
         ]
         self.__players = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        self.__match_controller = controller
         self.__color = color
-        self.__formation = "4-4-2"
         self.__team_name = "DP LIONS"
-        self.__left_team = left
+        self.__fielding_team = fielding_team
         self.__team_color = color
        
-        self.__players_w = [PlayerView(self.__positions[j], self.__players[j], color) for j in range(11)]
         self.__layout = QGridLayout()
         self.__bottom_layout = QVBoxLayout()
         self.__main_layout = QVBoxLayout()
@@ -560,7 +535,6 @@ class TeamViewWidget(QWidget):
 
     def set_team_players(self, players:list[dict])->None:
         for i, player in enumerate(players):
-            # print(player)
             self.__positions[i] = player['position']
             self.__players[i] = player['jersey_number']
         self.__update_players()
@@ -574,6 +548,7 @@ class TeamViewWidget(QWidget):
     def __update_players(self)->None:
         for player_widget in self.__players_w:
             position = player_widget.get_position()
+            # print(self.__positions)
             idx = self.__positions.index(position)
             player_widget.set_jersey_number(self.__players[idx])
             player_widget.set_color(self.__team_color)
@@ -581,21 +556,37 @@ class TeamViewWidget(QWidget):
     def set_team_info(self, team_info:dict)->None:
         self.__team_color = team_info['color']
         self.__team_name = team_info['name']
-        self.__formation = team_info['formation']
+        self.__fielding_team = team_info['fielding']
         self.set_team_players(team_info['players'])
         self.__team_name_view.setText(f"Name:\t{self.__team_name}")
-        self.__team_formations_view.setText(f"Formation:\t{self.__formation}")
+        self.__team_formations_view.setText(f"Fielding Team" if self.__fielding_team else f"Batting Team")
+        self.update()
+
+    def update_team_info(self, data)->None:
+         if self.__fielding_team == data.get('fielding'):
+             self.set_team_info(data)
 
     def init(self)->None:
-        if self.__left_team:
+        if self.__fielding_team:
+            if self.__match_controller.is_fielding_team_init():
+                team = self.__match_controller.get_fielding_team_info()
+                self.set_team_info(team)
+            else:
+                self.__players_w = [PlayerView(self.__positions[j], self.__players[j], self.__color) for j in range(11)]
             self.arrange_left_players()
         else:
-            self.arrange_right_players()
-        self.add_team_stats()
+            if self.__match_controller.is_bowling_team_init():
+                team = self.__match_controller.get_bowling_team_info()
+                self.set_team_info(team)
+            else:
+                self.__players_w = [PlayerView(self.__positions[j], self.__players[j], self.__color) for j in range(11)]
+                self.arrange_right_players()
 
+        self.add_team_stats()
         self.__main_layout.addLayout(self.__layout)
         self.__main_layout.addLayout(self.__bottom_layout)
         self.setLayout(self.__main_layout)
+        self.__match_controller.registerTeamDataChangedListener(self.update_team_info)
 
     def arrange_left_players(self)->None:
         self.__layout.addWidget(self.__players_w[0], 1, 0)
@@ -621,7 +612,7 @@ class TeamViewWidget(QWidget):
         self.__team_name_view.setObjectName("team-name-view")
         self.__team_name_view.setStyleSheet("#team-name-view{border-bottom:1px solid black; color:white; font-weight:500; font-size:16px;}")
 
-        self.__team_formations_view = QLabel(f"Formation:\t{self.__formation}")
+        self.__team_formations_view = QLabel(f"Fielding Team" if self.__fielding_team else f"Batting Team")
         self.__team_formations_view.setObjectName("team-formations-view")
         self.__team_formations_view.setStyleSheet("#team-formations-view{border-bottom:1px solid black; color:white; font-weight:500; font-size:16px;}")
         
@@ -652,18 +643,19 @@ class TeamViewWidget(QWidget):
         painter.drawEllipse(x_position, y_position, circle_diameter, circle_diameter)
         
 class MatchViewWidget(QWidget):
-    def __init__(self, parent= None) -> None:
+    def __init__(self, controller:MatchController, parent= None) -> None:
         super().__init__(parent)
-        self.__teams = [TeamViewWidget('blue', True, self), TeamViewWidget('red',False, self)]
+        self.__teams = [TeamViewWidget(controller, 'blue', True, self), TeamViewWidget(controller, 'red',False, self)]
         self.__layout = QHBoxLayout()
-        self.__match_controller = None
+        self.__match_controller = controller
         self.init()
 
     def set_match_controller(self, controller)->None:
         self.__match_controller = controller
         if self.__match_controller is not None:
-            self.__match_controller.set_team_view(True, self.__teams[0])
-            self.__match_controller.set_team_view(False, self.__teams[1])
+            fielding_team = True
+            self.__match_controller.set_team_view(fielding_team, self.__teams[0])
+            self.__match_controller.set_team_view(not fielding_team, self.__teams[1])
             self.__match_controller.set_match_view_widget(self)
             if self.__match_controller.is_match_init():
                 self.update_match_info(self.__match_controller.get_match_info())

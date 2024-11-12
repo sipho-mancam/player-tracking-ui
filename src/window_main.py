@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
         self.load_view_a = None
         self.load_view_b = None
         self.__swap_teams = None
-        self.__match_controller = None
+        self.__match_controller = MatchController()
         self.__formations_view = None
         self.__data_associations_controller = None
 
@@ -93,9 +93,7 @@ class MainWindow(QMainWindow):
         self.__palette_triggered = True
 
     def set_match_controller(self, controller)->None:
-        self.__match_controller = controller
         if self.__match_controller is not None:
-            # self.__match_view_w.set_match_controller(self.__match_controller)
             self.__match_controller.set_start_button(self.open_button)
             self.open_button.setEnabled(self.__match_controller.is_match_init())
 
@@ -197,8 +195,8 @@ class MainWindow(QMainWindow):
         self.__buttons_layout = QHBoxLayout()
         self.open_button = QPushButton(" Start Tracking")
 
-        self.__load_team_a = QPushButton(' Configure Team A')
-        self.__load_team_b = QPushButton(' Configure Team B')
+        self.__load_team_a = QPushButton(' Fielding Team')
+        self.__load_team_b = QPushButton(' Bowling Team')
         self.__swap_teams  = QPushButton(" Switch Sides")
 
         ico_path = (__ASSETS_DIR__ / 'play-24.ico').resolve().as_posix()
@@ -236,7 +234,8 @@ class MainWindow(QMainWindow):
         self.__buttons_layout.setSpacing(0)
         self.__buttons_layout.setAlignment(Qt.AlignLeft)
 
-        self.__match_view_w = MatchViewWidget()
+        self.__match_view_w = MatchViewWidget(self.__match_controller)
+    
         self.__match_view_w.setStyleSheet(
                         """
                            #match-view{
@@ -263,7 +262,7 @@ class MainWindow(QMainWindow):
         # m_view = self.open_multi_view_dialog()
         # self.__multi_view = m_view
         # self.__data_associations_controller.set_multi_view(self.__multi_view)
-        self.__tracking_window = CricketTrackingWidget()
+        self.__tracking_window = CricketTrackingWidget(self.__match_controller)
         # self.__tracking_window.setStyleSheet(load_style_sheet(__CRICKET_STYLES__))
         self.__tracking_window.show()
         self.open_button.setDisabled(True)

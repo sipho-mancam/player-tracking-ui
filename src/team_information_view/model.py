@@ -116,6 +116,8 @@ class PlayerInfoModel:
         self.__track_id = -1
         self.__player_data = {}
         self.__coordinates = (0, 0)
+        self.__team_name = None
+        self.__team_color = None
         self.__data_change_callbacks = set()
 
     @property
@@ -176,24 +178,27 @@ class PlayerInfoModel:
 
 
 class TeamModel:
-    def __init__(self, left) -> None:
+    def __init__(self, fielding_team:bool) -> None:
         self.__team_data  = {}
         self.__name = None
         self.__starting_line_up = None
         self.__subs = None
         self.__players = []
-        self.__fielding_team = left
+        self.__fielding_team = fielding_team
         self.__is_init = False 
         self.__path = None
         self._dumped = False
         self.__playerDataChangedCallbacks = set()
         self.__team_data_changed_callbacks = set()
 
+    def __str__(self)->str:
+        return self.__name
+
     def is_team_init(self)->bool:
         return self.__is_init
     
     def is_fielding(self)->bool|None:
-        return self.__team_data.get('fielding')
+        return self.__fielding_team
     
     def get_name(self)->str|None:
         return self.__name
@@ -220,17 +225,22 @@ class TeamModel:
     
     def triggerTeamDataChanged(self)->None:
         for cb in self.__team_data_changed_callbacks:
-            cb(*(self.__team_data))
+            cb(*(self.__team_data, ))
             
     def set_team_info(self, data)->None:
         self.__team_data = data
         self.__name = data['name']
         self.__starting_line_up = data['players']
+        for player in self.__starting_line_up:
+            player['color'] = data.get('color')
+            player['team'] = self.__name
+        
         self.__fielding_team = data.get('fielding')
         self.__subs = data['subs']
         self.update_players(self.__starting_line_up)
         self.init_team()
         self.triggerTeamDataChanged()
+
 
     def write_to_disk(self)->None:
         self.__path = (__TEAMS_DIR__ / ("teams/" + self.__name + '.json')).resolve().as_posix()
@@ -241,7 +251,7 @@ class TeamModel:
         for player in player_info:
             for p in self.__players:
                 if p.jersey_number == player.get('jersey_number'):
-                    p.setPlayerData(player)
+                    p.set_player_data(player)
                     break
 
     def set_player_position(self, position, jersey_number:int)->None:
@@ -277,6 +287,7 @@ class TeamModel:
         self.__players = []
         for player in self.__starting_line_up:
             p = PlayerInfoModel(player.get('jersey_number'), player.get('position'))
+            p.set_player_data(player)
             if not self._dumped:
                 for cb in self.__playerDataChangedCallbacks:
                     p.registerDataChangeListener(cb)
@@ -303,6 +314,8 @@ class MatchModel:
         self.__teams = []
         self.__match_init = False
         self.__teams_data_structure = {}
+        self.__fielding_team = None
+        self.__batting_team = None
         self.init_teams()
 
     
@@ -317,6 +330,16 @@ class MatchModel:
         self.__teams.append(TeamModel(True))# Add the Fielding Team
         self.__teams.append(TeamModel(False))# Add Bowling Team
 
+    def swap_teams(self)->None:
+        if self.__batting_team is None or self.__fielding_team is None:
+            return
+        temp = self.__batting_team
+        self.__batting_team = self.__fielding_team
+        self.__fielding_team = temp
+        self.__teams_data_structure[self.__fielding_team].set_fielding()
+        self.__teams_data_structure[self.__batting_team].clear_fielding()
+        
+
     def registerTeamDataChangedListener(self, func:Callable)->None:
         for team in self.__teams:
             team.registerTeamDataChanged(func)
@@ -326,21 +349,25 @@ class MatchModel:
             team.registerPlayerDataChanged(func)
 
     def initialize_team_info(self, team_info:dict)->None:
-        fielding = team_info.get("fielding_team")
-        if fielding is not None and fielding:
+        fielding = team_info.get("fielding")
+        if fielding:
             for team in self.__teams:
                 if team.is_fielding():
                     team.set_team_info(team_info)
+                    team.set_fielding()
+                    self.__fielding_team = team.get_name()
                     self.__teams_data_structure[team.get_name()] = team
         else:              
             for team in self.__teams:
                 if not team.is_fielding():
                     team.set_team_info(team_info)
+                    team.clear_fielding()
+                    self.__batting_team = team.get_name()
                     self.__teams_data_structure[team.get_name()] = team
 
         if len(self.__teams_data_structure) >= 2:
             self.__match_init = True
-    
+        
     def set_player_data(self, team_name:str, data:dict)->None:
         team = self.__teams_data_structure[team_name]
         team.set_player_data(data)
@@ -356,19 +383,37 @@ class MatchModel:
     def set_fielding_team(self, team_name)->None:
         team = self.__teams_data_structure[team_name]
         team.set_fielding()
+        self.__fielding_team = team.get_name()
+
         for key in self.__teams_data_structure.keys():
             if key != team_name:
                 team.clear_fielding()
+                self.__batting_team = team.get_name()
 
     def set_team_info(self, team_name, team_info:dict)->None:
+        if team_info.get('fielding'):
+            self.__fielding_team = team_name
+        else:
+            self.__batting_team = team_name
         self.__teams_data_structure[team_name].set_team_info(team_info)
-        
+
+    def get_fielding_team_info(self)->dict:
+        return self.__teams_data_structure[self.__fielding_team].get_team_info()
+    
+    def is_fielding_team_init(self)->bool:
+        return self.__fielding_team is not None
+
+    def get_bowling_team_info(self)->dict:
+        return self.__teams_data_structure[self.__batting_team].get_team_info()
+            
+    def is_bowling_team_init(self)->bool:
+        return self.__batting_team is not None
 
     def get_player_data(self, team_name, jersey_number)->dict|None:
         team = self.__teams_data_structure[team_name]
         return team.get_player_data(jersey_number)
     
-    def get_team_info(self, team_name)->None:
+    def get_team_info(self, team_name)->dict|None:
         team = self.__teams_data_structure[team_name]
         return team.get_team_info()
 
@@ -398,9 +443,6 @@ class TrackingDataModel:
     def init(self)->None:
         self.__kafka_consumer.subscribe('ui-data')
         self.__kafka_consumer.start()
-        # self.__timer.setInterval(50)
-        # self.__timer.timeout.connect(self.update)
-        # self.__timer.start()
 
     def is_data_ready(self)->bool:
         return self.__kafka_consumer.is_data_ready()

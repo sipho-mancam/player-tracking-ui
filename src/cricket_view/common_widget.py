@@ -108,7 +108,7 @@ class ButtonWithID(QPushButton):
             painter.drawText(rect, Qt.AlignCenter, str(self.__assigned_id))
 
     def draw_jersey(self)->None:
-        id = self.__id.get('id') 
+        id = self.__id.get('jersey_number') 
         if id is not None:
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)

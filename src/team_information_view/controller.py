@@ -1,17 +1,10 @@
-from .model import TeamModel
-from .model import FormationsModel, MatchModel, TrackingDataModel
-
+from .model import MatchModel, TrackingDataModel
 from PyQt5.QtCore import QTimer
-from pprint import pprint
-
+from typing import Callable
 
 class MatchController:
     def __init__(self)->None:
         self.__match_model = MatchModel()    
-        self.__left =  True
-        self.__start_button = None
-        self.__team_a_set = False
-        self.__team_b_set = False
         self.__tracking_view = None
         self.__match_view_widget = None
         self.__instruction_table = {}
@@ -19,10 +12,9 @@ class MatchController:
         self.__instruction_table[0x01] = self.create_new_team
         self.__teams_init = self.is_match_init()
 
-
     # This method receives instructions from the ui and acts accordingly
     def upload_message(self, instruction, data=None)->None:
-        if not self.__teams_init:
+        if not self.__match_model.match_data_init():
             return
         
         self.__instruction_table[instruction](data)
@@ -33,30 +25,49 @@ class MatchController:
             self.__match_view_widget.update_match_info(self.get_match_info())
 
     def is_match_init(self)->bool:
-        return self.__teams_controllers[0].is_team_init() and self.__teams_controllers[1].is_team_init()
+        return self.__match_model.match_data_init()
 
-   
+    def registerTeamDataChangedListener(self, func:Callable)->None:
+        self.__match_model.registerTeamDataChangedListener(func)
+    
+    def registerPlayerDataChangedListener(self, func:Callable)->None:
+        self.__match_model.registerPlayerDataChanged(func)
+
+    
+    def get_fielding_team_info(self)->dict|None:
+        return self.__match_model.get_fielding_team_info()
+    
+    def get_bowling_team_info(self)->dict|None:
+        return self.__match_model.get_bowling_team_info()
+    
+    def is_fielding_team_init(self)->bool:
+        return self.__match_model.is_fielding_team_init()
+    
+    def is_bowling_team_init(self)->bool:
+        return self.__match_model.is_bowling_team_init()
+
     def swap_teams(self, data):
-       return
+       self.__match_model.swap_teams()
 
     def create_new_team(self, data:dict)->None:
         if self.__match_model.match_data_init():
             self.__match_model.initialize_team_info(data)
        
-
     def set_team_info(self, team_name, data:dict)->None:
         if not self.__match_model.match_data_init():
             self.__match_model.initialize_team_info(data)
         else:
             self.__match_model.set_team_info(team_name, data)
+
+        if self.__match_model.match_data_init():
+            self.__start_button.setEnabled(True)
+            
       
     def set_player_tracking_interface(self, player_tracking)->None:
         self.__tracking_view = player_tracking
     
     def set_match_view_widget(self, widget)->None:
         self.__match_view_widget = widget
-
-   
 
     def get_team_info(self, team_name)->dict:
         self.__match_model.get_team_info(team_name)
