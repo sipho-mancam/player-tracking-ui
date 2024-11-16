@@ -147,8 +147,9 @@ class StyledButton(QPushButton):
     def __init__(self, text='', parent=None)->None:
         super().__init__(text, parent)
         self.setCheckable(True)
-        self.setFixedWidth(180)
+        self.setFixedWidth(120)
         self.setStyleSheet(self.default_style())
+        self._state = False # Pressed or cleared
 
     def default_style(self):
         return """
@@ -181,8 +182,15 @@ class StyledButton(QPushButton):
         """
     
     def toggle_color(self):
-        
-        if self.isChecked():
-            self.setStyleSheet(self.toggled_style())
-        else:
-            self.setStyleSheet(self.default_style())
+        # if self.isChecked():
+        self.setStyleSheet(self.toggled_style())
+        self._state = True
+        # else:
+        #     self.setStyleSheet(self.default_style())
+    
+    def clear_toggle(self)->None:
+        self.setStyleSheet(self.default_style())
+        self._state = False
+
+    def get_state(self)->bool:
+        return self._state

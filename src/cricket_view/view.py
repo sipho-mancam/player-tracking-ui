@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLabel,
                              QSizePolicy, QHBoxLayout)
 from pathlib import Path
 from .common_widget import *
-from .controller import DataAssociationsController, StateGenerator
+from .controller import DataAssociationsController, StateGenerator, EventsController
 import numpy as np
 import math
 from typing import Callable
@@ -65,6 +65,7 @@ class CricketOvalWindow(QLabel):
         self.__current_selected_id = None
         # A list of callback functions waiting to receive an ID when it's clicked
         self.__id_recievers = []
+        self.__id_click_callbacks = set()
      
     def registerIDReceiver(self, func:Callable)->None:
         self.__id_recievers.append(func)
@@ -127,7 +128,7 @@ class CricketOvalWindow(QLabel):
         if track_id is None:
             painter.setBrush(QBrush(Qt.red))
             painter.setPen(QPen(Qt.red, 1))
-
+        mode = details.get('mode')
         status = details.get('state')
         if status == StateGenerator.UNASSOCIATED:
             if details.get('mode_state') != StateGenerator.STATE_CLEAR:
@@ -171,11 +172,29 @@ class CricketOvalWindow(QLabel):
             painter.setPen(QPen(Qt.white, 2))
             painter.drawText(point, f"{jersey_number}".zfill(2))
         
-        elif status == StateGenerator.CLICKED:
+        elif status == StateGenerator.CLICKED and (mode == StateGenerator.MODE_DEFAULT or mode is None):
             painter.setPen(QPen(Qt.yellow, 3))
             painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
             point.setX((point.x()-self.radius)+round(self.radius*0.01))
+            font = painter.font()
+            font.setPixelSize(12)
+            font.setBold(True)
+            painter.setFont(font)
+            painter.setPen(QPen(Qt.blue, 2))
+            painter.drawText(point, f"{track_id}".zfill(2))
+
+        else:
+            if details.get('mode') == StateGenerator.MODE_HIGHLIGHT:
+                color = (0, 0, 255)
+                painter.setBrush(QColor(*color))
+            elif details.get('mode') ==StateGenerator.MODE_HIDE:
+                color = (255, 255, 255) 
+                painter.setBrush(QColor(*color))
+
+            painter.drawEllipse(point, self.radius, self.radius) 
+            point.setY(point.y()-self.radius)
+            point.setX(point.x()-self.radius+round(self.radius*0.01))
             font = painter.font()
             font.setPixelSize(12)
             font.setBold(True)
@@ -248,9 +267,10 @@ class CricketOvalWindow(QLabel):
             id = self.__objects_state.get_closest_id(pos)
             if id is not None:
                 self.__controller.update_click(id)
+                for func in self.__id_recievers:
+                    func(*(id, ))
             self.__current_selected_id = id
-            for func in self.__id_recievers:
-                func(*(id, ))
+           
         return super().mousePressEvent(ev)
 
 
@@ -297,14 +317,20 @@ class FieldersGridView(QWidget):
         self.setLayout(self.__main_layout)
         self.initUI()
         self.__current_selected_id = None
+        self.__clicked_callbacks = set()
 
     def handleButtonClick(self, player:dict)->None:
         if self.__current_selected_id is None:
             return
         self.__controller.associate_player(player, self.__current_selected_id)
 
+    def registerIDClickCallback(self, cb:Callable)->None:
+        self.__clicked_callbacks.add(cb)
+    
+
     def update_current_selected_id(self, id)->None:
         self.__current_selected_id = id
+
        
     def initUI(self)->None:
         team = self.__match_controller.get_fielding_team_info()
@@ -369,15 +395,53 @@ class CricketTrackingWidget(QWidget):
         self.__cricket_view_map = CricketOvalWindow(self.__controller)
         self.__fielders_grid = FieldersGridView(self.__controller, self.__match_controller, "Fielders")
         self.__cricket_view_map.registerIDReceiver(self.__fielders_grid.update_current_selected_id)
+        self.__current_mode = StateGenerator.MODE_DEFAULT
+        self.__previous_mode = StateGenerator.MODE_DEFAULT
+        self.__current_selected = None
+        self.__mode_ids = None
+        self.__distance_ids = []
+        self.__events_controller = EventsController()
+        self.__header_buttons = []
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.initTopBar()
         self.initUI()
         self.setFixedSize(self.sizeHint())
+        self.__cricket_view_map.registerIDReceiver(self.clicked_id)
+    
+
+    def setCurrentMode(self, mode:int)->None:
+        self.__current_mode = mode
+
+    def clicked_id(self, id)->None:
+        if self.__current_mode != StateGenerator.MODE_DISTANCE:
+            self.__mode_ids = id
+            event = self.__events_controller._build_event_object(self.__current_mode, 
+                                                         self.__current_mode, 
+                                                         StateGenerator.STATE_SET if self.__current_mode != StateGenerator.MODE_DEFAULT else StateGenerator.STATE_CLEAR,
+                                                         self.__mode_ids)
+            self.__events_controller.send_current_event()
+        else:
+           self.__distance_ids.append(id)
+           if len(self.__distance_ids) >= 2:
+                event = self.__events_controller._build_event_object(self.__current_mode, 
+                                                            self.__current_mode, 
+                                                            StateGenerator.STATE_SET,
+                                                            self.__distance_ids)
+                self.__events_controller.send_current_event() 
+
+    def get_modes(self)->list[int]:
+        return [StateGenerator.MODE_DEFAULT, 
+                StateGenerator.MODE_HIGHLIGHT, 
+                StateGenerator.MODE_HIDE, 
+                StateGenerator.MODE_DISTANCE, 
+                StateGenerator.MODE_BOWLER]
+
 
     def initUI(self)->None:
         self.__main_layout.addWidget(self.__cricket_view_map, 1, 0)
-        self.__buttons_layout.addWidget(self.__fielders_grid)
+        # self.__buttons_layout.addWidget(self.__fielders_grid)
+        self.__fielders_grid.hide()
      
         self.__buttons_layout.setContentsMargins(0,0,0,0)
         self.__main_layout.addLayout(self.__header_buttons_layout, 0, 0, Qt.AlignLeft)
@@ -385,24 +449,95 @@ class CricketTrackingWidget(QWidget):
         self.__main_layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.__main_layout)
 
+    def select_mode(self, mode:int)->None:
+        if self.__current_mode == mode and self.__current_mode != StateGenerator.MODE_DEFAULT:
+            self.__current_mode = StateGenerator.MODE_DEFAULT
+            self.__current_selected = ""
+        else:
+            self.__current_mode =  mode
+        
+        # print(self.__current_mode)
+        for but in self.__header_buttons:
+            obj_name = but.objectName()
+            if self.__current_selected != obj_name:
+                but.clear_toggle()
+
+    def select_highlight(self)->None:
+        self.__current_selected = "highlight"
+        self.select_mode(StateGenerator.MODE_HIGHLIGHT)
+
+    def select_hide(self)->None:
+        self.__current_selected = "hide_player"
+        self.select_mode(StateGenerator.MODE_HIDE)
+
+    def select_clear(self)->None:
+        self.__current_selected = "clear_mode"
+        self.select_mode(StateGenerator.MODE_DEFAULT)
+
+    def select_dist(self)->None:
+        self.__current_selected = "clear_dist"
+        self.select_mode(StateGenerator.MODE_DEFAULT)
+        event = self.__events_controller._build_event_object(StateGenerator.MODE_DISTANCE, 
+                                                         StateGenerator.MODE_DISTANCE, 
+                                                         StateGenerator.STATE_SET,
+                                                         (-1, -1))
+        self.__events_controller.send_current_event()
+        self.__distance_ids.clear()
+        
+    
+    def select_distance(self)->None:
+        self.__current_selected = "distance_cal"
+        self.select_mode(StateGenerator.MODE_DISTANCE)
+        
 
     def initTopBar(self)->None:
         self.switch_ends = StyledButton('Switch Ends', self)
+        self.switch_ends.setObjectName("swt_ends")
         self.switch_ends.clicked.connect(self.switch_ends.toggle_color)
 
-        self.distance = StyledButton('Calculate Distance', self)        
+        self.distance = StyledButton('Distance', self)   
+        self.distance.setObjectName("distance_cal")     
         self.distance.clicked.connect(self.distance.toggle_color)
+        self.distance.clicked.connect(self.select_distance)
       
         self.highlight_button = StyledButton('Highlight', self)
+        self.highlight_button.setObjectName('highlight')
         self.highlight_button.clicked.connect(self.highlight_button.toggle_color)
+        self.highlight_button.clicked.connect(self.select_highlight)
 
         self.hide_player = StyledButton('Hide Player', self)
+        self.hide_player.setObjectName('hide_player')
         self.hide_player.clicked.connect(self.hide_player.toggle_color)
+        self.hide_player.clicked.connect(self.select_hide)
+
+        self.clear_mode = StyledButton('Clear Modes', self)
+        self.clear_mode.setObjectName('clear_mode')
+        self.clear_mode.clicked.connect(self.clear_mode.toggle_color)
+        self.clear_mode.clicked.connect(self.select_clear)
+
+        self.clear_dist = StyledButton('Clear Distance', self)
+        self.clear_dist.setObjectName('clear_dist')
+        self.clear_dist.clicked.connect(self.clear_dist.toggle_color)
+        self.clear_dist.clicked.connect(self.select_dist)
+
+        # self.bowler = StyledButton('Bowler', self)
+
+
+        self.__header_buttons.append(self.switch_ends)
+        self.__header_buttons.append(self.distance)
+        self.__header_buttons.append(self.highlight_button)
+        self.__header_buttons.append(self.hide_player)
+        self.__header_buttons.append(self.clear_mode)
+        self.__header_buttons.append(self.clear_dist)
+        # self.__header_buttons.append(self.bowler)
 
         self.__header_buttons_layout.addWidget(self.highlight_button)
         self.__header_buttons_layout.addWidget(self.distance)
         self.__header_buttons_layout.addWidget(self.switch_ends)
         self.__header_buttons_layout.addWidget(self.hide_player)
+        self.__header_buttons_layout.addWidget(self.clear_mode)
+        self.__header_buttons_layout.addWidget(self.clear_dist)
+        # self.__header_buttons_layout.addWidget(self.bowler)
         self.__header_buttons_layout.setAlignment(Qt.AlignLeft)
     
     def closeEvent(self, a0):

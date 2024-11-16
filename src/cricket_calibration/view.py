@@ -15,7 +15,7 @@ class PolygonDrawer(QLabel):
         # Initialize state
         self.is_interactive = True
         self.selected_point = None
-        self.point_radius = 10  # Radius of the circles around points
+        self.point_radius = 8  # Radius of the circles around points
         self.saved_points = []  # List to store saved points as tuples
         self.__size = (940, 705)#(round(1920*.65), round(1080*.7))
         self.__current_frame = cv.resize(frame, self.__size)
@@ -173,7 +173,7 @@ class PolygonDrawer(QLabel):
         painter.setBrush(brush)
 
         for point in self.__alignment_points:
-            painter.drawEllipse(point, self.point_radius-3, self.point_radius-3)
+            painter.drawEllipse(point, 4, 4)
 
     def keyPressEvent(self, event):
         """Reset polygon if 'R' is pressed."""

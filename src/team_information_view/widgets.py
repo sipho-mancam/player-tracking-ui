@@ -317,7 +317,7 @@ class TeamLoadWidget(QWidget):
             "BOW"
         ]
 
-        self.__team_name = "DP Lions"
+        self.__team_name = "Fielding Team" if fielding_team else "Batting Team"
         self.__team_color = ""
         self.__whats_missing = ""
         self.__data = {}
@@ -520,8 +520,8 @@ class TeamViewWidget(QWidget):
         self.__players = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         self.__match_controller = controller
         self.__color = color
-        self.__team_name = "DP LIONS"
         self.__fielding_team = fielding_team
+        self.__team_name = "Fielding Team" if self.__fielding_team else "Batting Team"
         self.__team_color = color
        
         self.__layout = QGridLayout()

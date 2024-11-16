@@ -2,7 +2,10 @@
 from .model import TrackingDataModel
 from PyQt5.QtCore import QTimer
 from pprint import pprint
-
+import time
+from .kafka import KProducer
+from cfg.paths_config import __KAFKA_CONFIG__
+import json
 
 class StateGenerator:
     UNASSOCIATED = 0
@@ -12,9 +15,13 @@ class StateGenerator:
 
     STATE_SET = 1
     STATE_CLEAR = 0
+
     MODE_DEFAULT = 0
     MODE_HIGHLIGHT = 1
     MODE_HIDE = 2
+    MODE_DISTANCE = 3
+    MODE_BOWLER = 4
+
     def __init__(self, tracking_model:TrackingDataModel)->None:
         self.state = []
         self.__tracking_model = tracking_model
@@ -148,7 +155,42 @@ class StateGenerator:
                         'highlight':False
                 }}
 
+
+
+class EventsController:
+    def __init__(self)->None:
+        self.__current_mode = StateGenerator.MODE_DEFAULT
+        self.__current_id = 1
+        self.__current_event = {}
+        self.__kafka_producer = KProducer(__KAFKA_CONFIG__)
+        self.__events_topic = "system-events"
     
+    def _build_event_object(self, type, mode, state, id)->dict:
+        event = {
+            "event_id":self.__current_id,
+            "event_type":type,
+            "time_stamp":time.time(),
+            "data":{
+                "state":state,
+                "mod": mode,
+                "player_id": id if mode != StateGenerator.MODE_DISTANCE else -1,
+                "distance":{
+                    "player_id_1": id[0] if mode == StateGenerator.MODE_DISTANCE else -1,
+                    "player_id_2": id[1] if mode == StateGenerator.MODE_DISTANCE else -1,
+                }
+            }
+        }
+        self.__current_id  += 1
+        self.__current_event = event.copy()
+        return event
+    
+    def send_current_event(self, event:dict=None)->None:
+        if event is None:
+            self.__kafka_producer.send_message(self.__events_topic, json.dumps(self.__current_event))
+        else:
+             self.__kafka_producer.send_message(self.__events_topic, json.dumps(event))
+
+
 
 class DataAssociationsController:
     '''

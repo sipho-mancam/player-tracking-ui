@@ -3,6 +3,12 @@ from PyQt5.QtCore import QTimer
 from typing import Callable
 
 class MatchController:
+    MODE_DEFAULT = 0
+    MODE_HIGHLIGHT = 1
+    MODE_HIDE_PLAYER = 2
+    MODE_DISTANCE = 3
+    MODE_BOWLER = 4
+
     def __init__(self)->None:
         self.__match_model = MatchModel()    
         self.__tracking_view = None
@@ -11,6 +17,8 @@ class MatchController:
         self.__instruction_table[0x00] = self.swap_teams
         self.__instruction_table[0x01] = self.create_new_team
         self.__teams_init = self.is_match_init()
+        self.__current_mode = None
+
 
     # This method receives instructions from the ui and acts accordingly
     def upload_message(self, instruction, data=None)->None:

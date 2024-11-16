@@ -159,6 +159,7 @@ class MainWindow(QMainWindow):
 
 
     def open_formation_manager(self)->None:
+        return
         if self.__formations_view is None:
             self.__formations_view = FormationManagerView(self.parentWidget())
             if self.__match_controller is not None:
