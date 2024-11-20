@@ -64,11 +64,11 @@ class CricketOvalWindow(QLabel):
         self.__objects_state = UITrackObjectState(self.radius)
         self.__current_selected_id = None
         # A list of callback functions waiting to receive an ID when it's clicked
-        self.__id_recievers = []
+        self.__id_recievers = set()
         self.__id_click_callbacks = set()
      
     def registerIDReceiver(self, func:Callable)->None:
-        self.__id_recievers.append(func)
+        self.__id_recievers.add(func)
 
     def initUI(self)->None:
         self.__original_pixmap = QPixmap(__GREEN_CIRCLE__.as_posix())
@@ -269,6 +269,7 @@ class CricketOvalWindow(QLabel):
                 self.__controller.update_click(id)
                 for func in self.__id_recievers:
                     func(*(id, ))
+                    # print(id)
             self.__current_selected_id = id
            
         return super().mousePressEvent(ev)
@@ -414,6 +415,7 @@ class CricketTrackingWidget(QWidget):
         self.__current_mode = mode
 
     def clicked_id(self, id)->None:
+        print(id)
         if self.__current_mode != StateGenerator.MODE_DISTANCE:
             self.__mode_ids = id
             event = self.__events_controller._build_event_object(self.__current_mode, 

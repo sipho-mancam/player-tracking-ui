@@ -157,7 +157,6 @@ class MainWindow(QMainWindow):
         self.calib_layout.setAlignment(Qt.AlignTop)
         self.__calib_tab.setLayout(self.calib_layout)
 
-
     def open_formation_manager(self)->None:
         return
         if self.__formations_view is None:
