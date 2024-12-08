@@ -21,6 +21,9 @@ class StateGenerator:
     MODE_HIDE = 2
     MODE_DISTANCE = 3
     MODE_BOWLER = 4
+    MODE_MODE = 6 # Generic mode
+    MODE_RESET = -0x01
+
 
     def __init__(self, tracking_model:TrackingDataModel)->None:
         self.state = []

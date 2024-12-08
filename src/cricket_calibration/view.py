@@ -619,12 +619,18 @@ class CalibrationPage(QWidget):
         self._save_calib_button.setFixedWidth(150)
         self._save_calib_button.setFixedHeight(40)
         self._save_calib_button.clicked.connect(self.save_calibration)
+
+        self._load_calib_button = QPushButton("Load Calibration")
+        self._load_calib_button.setFixedWidth(150)
+        self._load_calib_button.setFixedHeight(40)
+        self._load_calib_button.clicked.connect(self.load_calibration)
         
         self._status_message = QLabel("Status: Boundary Alignment")
         # self._status_message.setFixedWidth(200)
         self._status_message.setFixedHeight(40)
         self._clear_calib_layout.setAlignment(Qt.AlignRight)
         self._clear_calib_layout.addWidget(self._status_message)
+        self._clear_calib_layout.addWidget(self._load_calib_button)
         self._clear_calib_layout.addWidget(self._save_calib_button)
         self._clear_calib_layout.addWidget(self._clear_calib_button)
         self._status_message.setAlignment(Qt.AlignVCenter|Qt.AlignLeft)
@@ -652,6 +658,8 @@ class CalibrationPage(QWidget):
         
         if self.merged_space is not None:
             self.merged_space.update_view()
+        
+        
 
     def clearCalibration(self)->None:
         if self.__current_frame_view is not None:
@@ -703,6 +711,11 @@ class CalibrationPage(QWidget):
 
     def save_calibration(self)->None:
         self._controller.dump_to_json()
+    
+    def load_calibration(self)->None:
+        self._controller.load_from_json()
+        self.updateUI()
+        self.update_polygon(self._controller.get_src_poly())
 
     def closeEvent(self, a0):
         if self.perspective_view is not None:

@@ -122,6 +122,20 @@ class CameraCalibrationModel:
             json.dump(self._calibration_state, fp)
         fp.close()
 
+    def from_json(self)->None:
+        if os.path.exists(__CRICKET_CALIB_PATH__ / f"calib_cam_{self._id}.json"):
+            with open(__CRICKET_CALIB_PATH__ / f"calib_cam_{self._id}.json", "r") as fp:
+                data = json.load(fp)
+                self._calibration_state = data
+                dst_pts = data['dst_pts']
+                src_pts = data['src_pts']
+                dst_pts = np.array(dst_pts, dtype=np.float32)
+                src_pts = np.array(src_pts, dtype=np.float32)
+                self._src_poly = src_pts
+                self._dst_poly = dst_pts
+                self._normalized_src_poly = src_pts.copy() / self._shape
+                self.update_src_poly(self._normalized_src_poly)
+
     def next_frame(self)->cv.Mat:
         return self._frames_model.next_frame()
 
@@ -208,6 +222,9 @@ class CricketCalibrationModel:
     def dump_to_json(self)->None:
         for model in self._models_list:
             model.to_json()
+        
+    def load_from_json(self)->None:
+        self._current_active_model.from_json()
     
     def get_calibration_state(self)->dict:
         return self._current_active_model.get_calibration_object()

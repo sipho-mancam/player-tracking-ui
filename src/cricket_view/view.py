@@ -138,6 +138,9 @@ class CricketOvalWindow(QLabel):
                 elif details.get('mode') ==StateGenerator.MODE_HIDE:
                     color = (255, 255, 255) 
                     painter.setBrush(QColor(*color))
+                elif details.get('mode') == StateGenerator.MODE_BOWLER:
+                    color = (255, 255, 0) 
+                    painter.setBrush(QColor(*color))
 
             painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
@@ -190,6 +193,9 @@ class CricketOvalWindow(QLabel):
                 painter.setBrush(QColor(*color))
             elif details.get('mode') ==StateGenerator.MODE_HIDE:
                 color = (255, 255, 255) 
+                painter.setBrush(QColor(*color))
+            elif details.get('mode') == StateGenerator.MODE_BOWLER:
+                color = (255, 255, 0) 
                 painter.setBrush(QColor(*color))
 
             painter.drawEllipse(point, self.radius, self.radius) 
@@ -397,6 +403,7 @@ class CricketTrackingWidget(QWidget):
         self.__fielders_grid = FieldersGridView(self.__controller, self.__match_controller, "Fielders")
         self.__cricket_view_map.registerIDReceiver(self.__fielders_grid.update_current_selected_id)
         self.__current_mode = StateGenerator.MODE_DEFAULT
+        self.__event_type = StateGenerator.MODE_DEFAULT
         self.__previous_mode = StateGenerator.MODE_DEFAULT
         self.__current_selected = None
         self.__mode_ids = None
@@ -415,8 +422,16 @@ class CricketTrackingWidget(QWidget):
         self.__current_mode = mode
 
     def clicked_id(self, id)->None:
-        print(id)
-        if self.__current_mode != StateGenerator.MODE_DISTANCE:
+        if self.__event_type == StateGenerator.MODE_MODE:
+            self.__mode_ids = id
+            event = self.__events_controller._build_event_object(StateGenerator.MODE_MODE, 
+                                                         self.__current_mode, 
+                                                         StateGenerator.STATE_SET if self.__current_mode != StateGenerator.MODE_DEFAULT else StateGenerator.STATE_CLEAR,
+                                                         self.__mode_ids)
+            self.__events_controller.send_current_event()
+            self.__event_type = StateGenerator.MODE_DEFAULT
+
+        elif self.__current_mode != StateGenerator.MODE_DISTANCE:
             self.__mode_ids = id
             event = self.__events_controller._build_event_object(self.__current_mode, 
                                                          self.__current_mode, 
@@ -490,12 +505,27 @@ class CricketTrackingWidget(QWidget):
     def select_distance(self)->None:
         self.__current_selected = "distance_cal"
         self.select_mode(StateGenerator.MODE_DISTANCE)
-        
 
+    def select_reset(self)->None:
+        self.__current_selected = "reset_button"
+        self.select_mode(StateGenerator.MODE_RESET)
+        event = self.__events_controller._build_event_object(StateGenerator.MODE_RESET, 
+                                                         StateGenerator.MODE_RESET, 
+                                                         StateGenerator.STATE_SET,
+                                                         -1)
+        self.__events_controller.send_current_event() 
+
+    def select_bowler(self)->None:
+        self.__current_selected = "bowler_button"
+        self.__event_type = StateGenerator.MODE_MODE
+        self.select_mode(StateGenerator.MODE_BOWLER)
+        
     def initTopBar(self)->None:
-        self.switch_ends = StyledButton('Switch Ends', self)
-        self.switch_ends.setObjectName("swt_ends")
-        self.switch_ends.clicked.connect(self.switch_ends.toggle_color)
+        self.reset_button = StyledButton('Reset', self)
+        self.reset_button.setObjectName("reset_button")
+        self.reset_button.clicked.connect(self.reset_button.toggle_color)
+        self.reset_button.clicked.connect(self.select_reset)
+        self.reset_button.setEnabled(False)
 
         self.distance = StyledButton('Distance', self)   
         self.distance.setObjectName("distance_cal")     
@@ -522,10 +552,14 @@ class CricketTrackingWidget(QWidget):
         self.clear_dist.clicked.connect(self.clear_dist.toggle_color)
         self.clear_dist.clicked.connect(self.select_dist)
 
-        # self.bowler = StyledButton('Bowler', self)
+        self.bowler_button = StyledButton('BOWLER', self)
+        self.bowler_button.setObjectName("bowler_button")
+        self.bowler_button.clicked.connect(self.bowler_button.toggle_color)
+        self.bowler_button.clicked.connect(self.select_bowler)
 
 
-        self.__header_buttons.append(self.switch_ends)
+        self.__header_buttons.append(self.reset_button)
+        self.__header_buttons.append(self.bowler_button)
         self.__header_buttons.append(self.distance)
         self.__header_buttons.append(self.highlight_button)
         self.__header_buttons.append(self.hide_player)
@@ -534,12 +568,13 @@ class CricketTrackingWidget(QWidget):
         # self.__header_buttons.append(self.bowler)
 
         self.__header_buttons_layout.addWidget(self.highlight_button)
-        self.__header_buttons_layout.addWidget(self.distance)
-        self.__header_buttons_layout.addWidget(self.switch_ends)
+        self.__header_buttons_layout.addWidget(self.bowler_button)
+        self.__header_buttons_layout.addWidget(self.distance)        
         self.__header_buttons_layout.addWidget(self.hide_player)
         self.__header_buttons_layout.addWidget(self.clear_mode)
         self.__header_buttons_layout.addWidget(self.clear_dist)
-        # self.__header_buttons_layout.addWidget(self.bowler)
+        self.__header_buttons_layout.addWidget(self.reset_button)
+
         self.__header_buttons_layout.setAlignment(Qt.AlignLeft)
     
     def closeEvent(self, a0):

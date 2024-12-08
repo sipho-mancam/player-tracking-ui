@@ -15,6 +15,9 @@ class CalibrationController:
     
     def dump_to_json(self)->None:
         self.__model.dump_to_json()
+    
+    def load_from_json(self)->None:
+        self.__model.load_from_json()
 
     def update_src_poly(self, poly:np.ndarray)->None:
         self.__model.update_src_poly(poly)
@@ -53,5 +56,4 @@ class CalibrationController:
         frame = self.__model.next_frame()
         if frame is not None:
             self.__view.update_frame(frame)
-        
         self.__view.updateUI()
