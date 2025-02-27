@@ -2,7 +2,7 @@ from configparser import ConfigParser
 from confluent_kafka import Consumer, OFFSET_BEGINNING,  Producer
 from threading import Thread, Event
 import json
-import pprint
+from PyQt5.QtCore import pyqtSignal, QObject
 import re
 
 reset = False
@@ -12,8 +12,11 @@ def reset_offset(consumer, partitions):
             p.offset = OFFSET_BEGINNING
         consumer.assign(partitions)
 
-class KConsumer:
+class KConsumer(QObject):
+    dataEventsSignal = pyqtSignal(dict)
+
     def __init__(self, config_path:str):
+        super().__init__()
         self.__config_path = config_path
         self.__config_parser = ConfigParser()
         self.__config = None
@@ -25,6 +28,7 @@ class KConsumer:
         self.__tracking_data_queue = []
         self.__clear_to_leave = Event()
         self.__topics = set()
+        self.received_topic = None
         self.__init()
 
     def toggle_offsetReset(self):
@@ -51,14 +55,19 @@ class KConsumer:
                     # you need to publish to the error log
                     print("ERROR: %s".format(msg.error()))
                 else:
+                    
                     message = msg.value().decode('utf-8')
-                    # print(message)
+                    self.received_topic = msg.topic()
+                    # print(self.get_current_topic())
+                    if self.received_topic != "ui-data":
+                        self.dataEventsSignal.emit(json.loads(message))
+                        continue
+
                     self.__data_queue.append(message)
                     self.__tracking_data_queue.append(message)
                     if len(self.__tracking_data_queue) > 5:
                         self.__tracking_data_queue.pop(0)
                     self.__data_event.set()
-
             print("Cleaning up and exiting ...")
         except KeyboardInterrupt:
             pass
@@ -95,6 +104,7 @@ class KConsumer:
 
     def is_data_ready(self)->bool:
         return self.__data_event.is_set()
+    
 
     def getTrackingData(self, as_dict=False)->dict:
         # you can only call this method once.
@@ -105,7 +115,9 @@ class KConsumer:
             data_piece = json.loads(data_piece)
         self.__data_event.clear()
         return data_piece
-    
+       
+    def get_current_topic(self)->str|None:
+        return self.received_topic
 
 
 class KProducer:

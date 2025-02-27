@@ -1,7 +1,7 @@
 from PyQt5.QtCore import Qt, QPoint, QTimer
 from PyQt5.QtGui import QImage, QPixmap, QMouseEvent
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel,
-                             QSizePolicy, QHBoxLayout)
+                             QSizePolicy, QHBoxLayout, QMessageBox)
 from pathlib import Path
 from .common_widget import *
 from .controller import DataAssociationsController, StateGenerator, EventsController
@@ -9,6 +9,7 @@ import numpy as np
 import math
 from typing import Callable
 from cfg.paths_config import __CRICKET_STYLES__, __GREEN_CIRCLE__
+
 
 
 def load_style_sheet(file_name)->str:
@@ -390,11 +391,13 @@ class FieldersGridView(QWidget):
 
 
 class CricketTrackingWidget(QWidget):
+    untrackedIdsChanged = pyqtSignal(dict)
     def __init__(self, controller, parent = None):
         super().__init__(parent)
         self.setWindowTitle("Cricket Tracking")
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)      
         self.__controller = DataAssociationsController()
+        self.__controller.untrackedIdsChangedSignal.connect(self.untrackedIdsChanged)
         self.__header_buttons_layout = QHBoxLayout()
         self.__match_controller = controller
         self.__main_layout = QGridLayout()
@@ -417,11 +420,24 @@ class CricketTrackingWidget(QWidget):
         self.setFixedSize(self.sizeHint())
         self.__cricket_view_map.registerIDReceiver(self.clicked_id)
     
+    #### Slots for received signals
+    def toggleOnAirMode(self, flag)->None:
+        self.__on_air_flag = flag
+        self.__controller.onAirModeSlot(flag)
+    
+    def plotIdActivated(self, id)->None:
+        self.__controller.enableIdPlot(id)
+    
 
     def setCurrentMode(self, mode:int)->None:
         self.__current_mode = mode
 
     def clicked_id(self, id)->None:
+        import random
+        count = random.randint(0, 10) 
+        self.untrackedIdsChanged.emit([i for i in range(count)])
+        print(count)
+
         if self.__event_type == StateGenerator.MODE_MODE:
             self.__mode_ids = id
             event = self.__events_controller._build_event_object(StateGenerator.MODE_MODE, 
@@ -580,3 +596,91 @@ class CricketTrackingWidget(QWidget):
     def closeEvent(self, a0):
         self.__controller.stop()
         return super().closeEvent(a0)
+
+
+class OnAirWindow(QWidget):
+    idButtonClickedSignal = pyqtSignal(int)
+    onAirClickedSignal = pyqtSignal(bool)
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.__tracked_ids = [1, 2, 3, 5, 6, 10]
+        self.__main_layout = QVBoxLayout()
+        self.__on_air_button = QPushButton("Go On Air")
+        self.__on_air_flag = False
+        self.ids_layout = QGridLayout()
+        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint)      
+        self.setWindowTitle("Untracked IDs")
+        self.initUI()
+
+    def initUI(self)->None:
+        self.initHeaderButtons()
+        self.updateTrackedIds()
+        self.__main_layout.addLayout(self.ids_layout)
+        self.setLayout(self.__main_layout)
+
+    def onAirMode(self)->None:
+        self.__on_air_flag = not self.__on_air_flag
+        if self.__on_air_flag:
+            self.__on_air_button.setText("Go Off Air")
+        else:
+            self.__on_air_button.setText("Go On Air")
+        
+        self.onAirClickedSignal.emit(self.__on_air_flag)
+
+    def initHeaderButtons(self)->None:
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.__on_air_button)
+        self.__on_air_button.clicked.connect(self.onAirMode)
+        self.__main_layout.addLayout(buttons_layout)
+    
+    def trackedIdsChangedSlot(self, untracked_ids_event: dict)->None:
+        # print("Received Event: ", untracked_ids_event)
+        if untracked_ids_event["event_name"] == "update_untracked_ids":
+            data = untracked_ids_event["event_data"]
+            self.__tracked_ids = data["untracked_ids"]
+            print(self.__tracked_ids)
+            self.updateTrackedIds()
+
+    def idClickedSlot(self, id)->None:
+        if self.__on_air_flag:
+            self.idButtonClickedSignal.emit(id)
+        else:
+            QMessageBox.critical(None, "Error ID Plot", "You can't plot IDs without going on air.")
+        
+    def updateTrackedIds(self)->None:
+        # First update the elements with the IDS
+        number_of_ids = len(self.__tracked_ids)
+        to_hide_or_create = self.ids_layout.count() - number_of_ids
+        # We have buttons that are either more than what we need or exactly what we need.
+        if to_hide_or_create >= 0: 
+            for idx, id in enumerate(self.__tracked_ids):
+                widget = self.ids_layout.itemAt(idx).widget()
+                widget.setText(f"{id}")
+                widget.setId(id)
+                widget.show()
+
+            hide_from = len(self.__tracked_ids)
+            for i in range(hide_from, self.ids_layout.count()):
+                widget = self.ids_layout.itemAt(i).widget()
+                widget.hide()
+
+        # We don't have enough buttons to work with, so we might need to create some
+        elif to_hide_or_create < 0:
+            update_upto = self.ids_layout.count()
+            for idx, id in enumerate(self.__tracked_ids):
+                if idx >= update_upto:
+                    break
+                widget = self.ids_layout.itemAt(idx).widget()
+                widget.setText(f"{id}")
+                widget.setId(id)
+                widget.show()
+
+            for idx in range(update_upto, len(self.__tracked_ids)):
+                id = self.__tracked_ids[idx]
+                row, col = divmod(idx, 5)
+                btn = RoundButtonWidget(id, f"{id}", 50, 50)
+                btn.onClickSignal.connect(self.idClickedSlot)
+                self.ids_layout.addWidget(btn, row, col)
+           
+        
+

@@ -1,6 +1,6 @@
 
 from .model import TrackingDataModel
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, QObject, pyqtSignal
 from pprint import pprint
 import time
 from .kafka import KProducer
@@ -93,6 +93,7 @@ class StateGenerator:
         if self.__tracking_model.is_data_ready():
             self.state = []
             tracking_data_raw = self.__tracking_model.get_data()
+            print(tracking_data_raw)
             tracking_data = tracking_data_raw['tracks']
 
             if 'distance_object' in tracking_data_raw:
@@ -195,7 +196,7 @@ class EventsController:
 
 
 
-class DataAssociationsController:
+class DataAssociationsController(QObject):
     '''
     This class combines the Tracking Data coming in from the Tracking Core
     along with the player data that already exist from the UI side and presents a unified 
@@ -218,13 +219,24 @@ class DataAssociationsController:
         }
     }]
     '''
+    untrackedIdsChangedSignal = pyqtSignal(dict)
     def __init__(self)->None:
+        super().__init__()
         self.__tracking_model = TrackingDataModel()
         self.__timer = QTimer()
         self.__state_generator = None
         self.__state_object = []
         self.__multi_view = False
         self.init()
+        self.__tracking_model.untrackedIdsChangedSignal.connect(self.untrackedIdsChangedSignal)
+
+    def onAirModeSlot(self, flag)->None:
+        self.__tracking_model.onAirModeSlot(flag)
+
+    def enableIdPlot(self, id)->None:
+        self.__tracking_model.enableIdPlot(id)
+    
+
 
     def init(self)->None:
         self.__state_generator = StateGenerator(self.__tracking_model)

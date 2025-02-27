@@ -2,7 +2,8 @@
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton,
                              QGridLayout, QVBoxLayout, QHBoxLayout, QDialog)
 from PyQt5.QtGui import QImage, QPixmap, QColor, QPaintEvent, QPen, QBrush, QPainter
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+
 
 
     
@@ -194,3 +195,41 @@ class StyledButton(QPushButton):
 
     def get_state(self)->bool:
         return self._state
+
+
+class RoundButtonWidget(QPushButton):
+
+    onClickSignal = pyqtSignal(int)
+
+    def __init__(self, id, text, width=100, height=100, parent=None)->None:
+        super().__init__(text, parent)
+        self.setFixedHeight(height)
+        self.setFixedWidth(width)
+        self.__id = id
+        
+        self.setStyleSheet("""
+            RoundButtonWidget{
+                border-radius:50%;
+            }
+            QPushButton {
+                border-style: outset;
+                background: #0000ff;
+                padding: 5px;
+                color: #eee;
+                font-size:16px;
+            }
+            QPushButton:pressed {
+                background: #aaa;
+            }
+        """)
+        self.clicked.connect(self.onClickResponse)
+
+    def setId(self, id)->None:
+        self.__id = id    
+
+    def onClickResponse(self)->None:
+        # print(self.__id)
+        self.onClickSignal.emit(self.__id)
+      
+
+    

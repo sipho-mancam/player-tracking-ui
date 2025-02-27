@@ -15,7 +15,7 @@ from cfg.paths_config import __ASSETS_DIR__, __CRICKET_STYLES__
 from system_control.controller import ColorPaletteController
 from system_control.palette import ColorPickerApp
 from recording.view import RecordingConfigDialog
-from cricket_view.view import CricketTrackingWidget, load_style_sheet
+from cricket_view.view import CricketTrackingWidget, load_style_sheet, OnAirWindow
 from cricket_calibration.view import CalibrationPage
 
 class MainWindow(QMainWindow):
@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
         self.__status_bar = QStatusBar(self)
         self.t_layout = None
         self.__tracking_window = None
+        self.__on_air_window = None
 
         #Create tab pages
         self.__cameras_tab = QWidget()
@@ -259,19 +260,27 @@ class MainWindow(QMainWindow):
         return mult_view
 
     def enable_track_window(self)->None:
-        # m_view = self.open_multi_view_dialog()
-        # self.__multi_view = m_view
-        # self.__data_associations_controller.set_multi_view(self.__multi_view)
+        if self.__tracking_window is not None:
+            self.open_button.setDisabled(True)
+            return
         self.__tracking_window = CricketTrackingWidget(self.__match_controller)
-        # self.__tracking_window.setStyleSheet(load_style_sheet(__CRICKET_STYLES__))
+        self.__on_air_window = OnAirWindow()
+
+        self.__tracking_window.untrackedIdsChanged.connect(self.__on_air_window.trackedIdsChangedSlot)
+
+        self.__on_air_window.idButtonClickedSignal.connect(self.__tracking_window.plotIdActivated) 
+        self.__on_air_window.onAirClickedSignal.connect(self.__tracking_window.toggleOnAirMode)   
+
         self.__tracking_window.show()
+        self.__on_air_window.show()   
         self.open_button.setDisabled(True)
-        # if self.__data_associations_controller is not None:
-            # self.__tracking_window.set_data_controller(self.__data_associations_controller)
 
     def closeEvent(self, event)->None:
         if self.__tracking_window is not None:
             self.__tracking_window.close()
+        
+        if self.__on_air_window is not None:
+            self.__on_air_window.close()
 
 
 if __name__ == "__main__":
