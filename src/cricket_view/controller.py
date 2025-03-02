@@ -41,7 +41,21 @@ class StateGenerator:
 
     def get_frames_count(self)->int:
         return self.__frames_count
+    
+    def plottedXYChanged(self, id, x, y)->None:
+        for track in self.state:
+            if track.get('track_id') == id and id is not None:
+                if track.get('plotted') is None or not track.get('plotted'):
+                    return
+                track['coordinates'] = (x, y)
+                break
 
+    def isIDPlotted(self, id)->bool:
+        for track in self.state:
+            if track["track_id"] == id:
+                return track.get('plotted') if track.get('plotted') else False
+        return False
+        
     def associate(self, player:dict, id:int)->None:
         # Check if the player wasn't assigned before.
         player['alert'] = False
@@ -49,7 +63,8 @@ class StateGenerator:
             p_l = self.__associations_table[key]
             if (str(p_l.get('team'))+str(p_l.get('jersey_number'))) == str(player.get('team'))+str(player.get('jersey_number')):
                 self.__associations_table.pop(key, -1)
-                break;
+                break
+
         self.__associations_table[id] = player
         self.__current_clicked = -1
 
@@ -93,7 +108,6 @@ class StateGenerator:
         if self.__tracking_model.is_data_ready():
             self.state = []
             tracking_data_raw = self.__tracking_model.get_data()
-            print(tracking_data_raw)
             tracking_data = tracking_data_raw['tracks']
 
             if 'distance_object' in tracking_data_raw:
@@ -122,6 +136,7 @@ class StateGenerator:
             self.__tracking_model.update_tracking_data(tracking_data_raw)
             self.__tracking_model.publish_data()
         return self.state
+    
 
     def __create_default_state_object(self, track:dict)->None:
         return {
@@ -220,6 +235,7 @@ class DataAssociationsController(QObject):
     }]
     '''
     untrackedIdsChangedSignal = pyqtSignal(dict)
+    idXYChangedSignal = pyqtSignal(int, float, float)
     def __init__(self)->None:
         super().__init__()
         self.__tracking_model = TrackingDataModel()
@@ -229,15 +245,23 @@ class DataAssociationsController(QObject):
         self.__multi_view = False
         self.init()
         self.__tracking_model.untrackedIdsChangedSignal.connect(self.untrackedIdsChangedSignal)
+        self.idXYChangedSignal.connect(self.__tracking_model.idXYChangedSlot)
 
+        
     def onAirModeSlot(self, flag)->None:
         self.__tracking_model.onAirModeSlot(flag)
 
     def enableIdPlot(self, id)->None:
         self.__tracking_model.enableIdPlot(id)
     
-
-
+    def plottedIdCoordinatesChangedSlot(self, id, x, y)->None:
+        if x > 1 or x < 0:
+            return
+        if y > 1 or y < 0:
+            return
+        
+        self.idXYChangedSignal.emit(id, x, y)
+        
     def init(self)->None:
         self.__state_generator = StateGenerator(self.__tracking_model)
         self.__state_generator.set_multi_view(self.__multi_view)

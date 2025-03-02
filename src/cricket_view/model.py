@@ -12,6 +12,7 @@ def __load_config__(configPath:Path=Path(r"C:\ProgramData\Player Tracking Softwa
 
 class TrackingDataModel(QObject):
     untrackedIdsChangedSignal = pyqtSignal(dict)
+    idXYChangedSignal  = pyqtSignal(int, float, float)
 
     def __init__(self)->None:
         super().__init__()
@@ -30,17 +31,30 @@ class TrackingDataModel(QObject):
         self.__kafka_consumer.start()
 
         self.__kafka_consumer.dataEventsSignal.connect(self.untrackedIdsSlot)
-      
+    
+    def sendTCEvent(self, event:dict)->None:
+        self.__kafka_producer.send_message(
+            self.config["tracking_core"]["kafka"]["events_topic"] if self.config else "tracking-core-events",
+            json.dumps(event) 
+        )
+
     def onAirModeSlot(self, flag)->None:
         event = {}
         event["event_name"] = "set_on_air"
         event["event_data"] = {
             "on_air_mode":flag
         }
-        self.__kafka_producer.send_message(
-            self.config["tracking_core"]["kafka"]["events_topic"] if self.config else "tracking-core-events",
-            json.dumps(event) 
-        )
+        self.sendTCEvent(event)
+
+    def idXYChangedSlot(self, id, x, y)->None:
+        event = {}
+        event["event_name"] = "update_idxy"
+        event["event_data"]={
+            "id":id,
+            "coordinates":[x, y]
+        }
+        self.sendTCEvent(event)
+       
     
     def enableIdPlot(self, id)->None:
         event = {}
@@ -48,11 +62,9 @@ class TrackingDataModel(QObject):
         event["event_data"] = {
             "id":id
         }
-        self.__kafka_producer.send_message(
-            self.config["tracking_core"]["kafka"]["events_topic"] if self.config else "tracking-core-events",
-            json.dumps(event) 
-        )
+        self.sendTCEvent(event)
 
+    
     def is_data_ready(self)->bool:
         return self.__kafka_consumer.is_data_ready()
     

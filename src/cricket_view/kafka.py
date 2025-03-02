@@ -54,8 +54,7 @@ class KConsumer(QObject):
                 elif msg.error():
                     # you need to publish to the error log
                     print("ERROR: %s".format(msg.error()))
-                else:
-                    
+                else:    
                     message = msg.value().decode('utf-8')
                     self.received_topic = msg.topic()
                     # print(self.get_current_topic())
@@ -120,8 +119,9 @@ class KConsumer(QObject):
         return self.received_topic
 
 
-class KProducer:
+class KProducer(QObject):
     def __init__(self, config_file):
+        super().__init__()
         self.config = ConfigParser()
         self.config.read(config_file)
         conf = {

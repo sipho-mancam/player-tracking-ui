@@ -51,6 +51,7 @@ class UITrackObjectState:
 
 
 class CricketOvalWindow(QLabel):
+    idXYChanged = pyqtSignal(int, float, float)
     def __init__(self, controller:DataAssociationsController, parent=None)->None:
         super().__init__(parent)
         self._original_pixmap = None
@@ -58,6 +59,7 @@ class CricketOvalWindow(QLabel):
         self.__update_timer.timeout.connect(self.update_view)
         self.__update_timer.start(50)
         self.__controller = controller
+        self.idXYChanged.connect(self.__controller.plottedIdCoordinatesChangedSlot)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setObjectName("cricket_oval")
         self.initUI()
@@ -67,6 +69,7 @@ class CricketOvalWindow(QLabel):
         # A list of callback functions waiting to receive an ID when it's clicked
         self.__id_recievers = set()
         self.__id_click_callbacks = set()
+        self.current_state = None
      
     def registerIDReceiver(self, func:Callable)->None:
         self.__id_recievers.add(func)
@@ -236,23 +239,23 @@ class CricketOvalWindow(QLabel):
         painter.setPen(pen)
         painter.setBrush(brush)
         painter.setRenderHint(QPainter.Antialiasing)
-        current_state = self.__controller.get_current_state()
+        self.current_state = self.__controller.get_current_state()
         if self.__controller.is_distance_object_available():
             distance_object = self.__controller.get_distance_object()
             # print(distance_object)
             if distance_object is not None:
                 id1 = distance_object.get('player_id_1')
                 id2 = distance_object.get('player_id_2')
-                track_1 = self.find_track(id1, current_state)
-                track_2 = self.find_track(id2, current_state)
+                track_1 = self.find_track(id1, self.current_state)
+                track_2 = self.find_track(id2, self.current_state)
                 if track_1 is not None and track_2 is not None:
                     self.draw_line(track_1, track_2, painter)
 
-        dets_list = self.__generate_points(current_state)
-        self.__objects_state.update_state(current_state)
+        dets_list = self.__generate_points(self.current_state)
+        self.__objects_state.update_state(self.current_state)
     
         for i, point in enumerate(dets_list):
-            self.__draw_point(point, painter, current_state[i])
+            self.__draw_point(point, painter, self.current_state[i])
         painter.end()
         self.setPixmap(pix_map)
 
@@ -263,23 +266,38 @@ class CricketOvalWindow(QLabel):
             
     def draw_line(self, track1, track2, painter:QPainter)->None:
         points = self.__generate_points([track1, track2])
-        painter.drawLine(points[0], points[1])
-
-
-        
+        painter.drawLine(points[0], points[1]) 
 
     def mousePressEvent(self, ev:QMouseEvent):
         if ev.button() == Qt.LeftButton:
             pos = self.mapFrom(self, ev.pos())
             id = self.__objects_state.get_closest_id(pos)
+
             if id is not None:
                 self.__controller.update_click(id)
                 for func in self.__id_recievers:
                     func(*(id, ))
-                    # print(id)
+            else:
+                if self.__current_selected_id is not None:
+                    pos = self.mapFrom(self, ev.pos())
+                    x, y = pos.x(), pos.y()
+                    x /= self.__original_pixmap.width()
+                    y /= self.__original_pixmap.height()
+                    self.idXYChanged.emit(self.__current_selected_id, x, y)
+    
             self.__current_selected_id = id
            
         return super().mousePressEvent(ev)
+    
+    def mouseMoveEvent(self, ev):
+        if self.__current_selected_id is not None:
+            pos = self.mapFrom(self, ev.pos())
+            x, y = pos.x(), pos.y()
+            x /= self.__original_pixmap.width()
+            y /= self.__original_pixmap.height()
+            self.idXYChanged.emit(self.__current_selected_id, x, y)
+        return super().mouseMoveEvent(ev)
+    
 
 
 class FieldersGridView(QWidget):
@@ -433,11 +451,6 @@ class CricketTrackingWidget(QWidget):
         self.__current_mode = mode
 
     def clicked_id(self, id)->None:
-        import random
-        count = random.randint(0, 10) 
-        self.untrackedIdsChanged.emit([i for i in range(count)])
-        print(count)
-
         if self.__event_type == StateGenerator.MODE_MODE:
             self.__mode_ids = id
             event = self.__events_controller._build_event_object(StateGenerator.MODE_MODE, 
@@ -473,9 +486,7 @@ class CricketTrackingWidget(QWidget):
 
     def initUI(self)->None:
         self.__main_layout.addWidget(self.__cricket_view_map, 1, 0)
-        # self.__buttons_layout.addWidget(self.__fielders_grid)
         self.__fielders_grid.hide()
-     
         self.__buttons_layout.setContentsMargins(0,0,0,0)
         self.__main_layout.addLayout(self.__header_buttons_layout, 0, 0, Qt.AlignLeft)
         self.__main_layout.addLayout(self.__buttons_layout, 1, 1, Qt.AlignTop)
@@ -488,8 +499,7 @@ class CricketTrackingWidget(QWidget):
             self.__current_selected = ""
         else:
             self.__current_mode =  mode
-        
-        # print(self.__current_mode)
+
         for but in self.__header_buttons:
             obj_name = but.objectName()
             if self.__current_selected != obj_name:
@@ -638,7 +648,6 @@ class OnAirWindow(QWidget):
         if untracked_ids_event["event_name"] == "update_untracked_ids":
             data = untracked_ids_event["event_data"]
             self.__tracked_ids = data["untracked_ids"]
-            print(self.__tracked_ids)
             self.updateTrackedIds()
 
     def idClickedSlot(self, id)->None:
