@@ -64,6 +64,15 @@ class TrackingDataModel(QObject):
         }
         self.sendTCEvent(event)
 
+    def idTrackCorrectSlot(self, id)->None:
+        event = {}
+        event["event_name"] = "id_track_correct"
+        event["event_data"] = {
+            "id":id
+        }
+        self.sendTCEvent(event)
+        print(event)
+
     
     def is_data_ready(self)->bool:
         return self.__kafka_consumer.is_data_ready()

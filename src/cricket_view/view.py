@@ -52,6 +52,7 @@ class UITrackObjectState:
 
 class CricketOvalWindow(QLabel):
     idXYChanged = pyqtSignal(int, float, float)
+    idTrackCorrection = pyqtSignal(int)
     def __init__(self, controller:DataAssociationsController, parent=None)->None:
         super().__init__(parent)
         self._original_pixmap = None
@@ -277,6 +278,13 @@ class CricketOvalWindow(QLabel):
                 self.__controller.update_click(id)
                 for func in self.__id_recievers:
                     func(*(id, ))
+                
+                kb_mod = ev.modifiers()
+                if kb_mod & Qt.CTRL:
+                    # Disengage this id if it's on a tracked state to a plotted state and place
+                    # it at the center of the board to be controlled'
+                    self.idTrackCorrection.emit(id)
+
             else:
                 if self.__current_selected_id is not None:
                     pos = self.mapFrom(self, ev.pos())
@@ -284,8 +292,11 @@ class CricketOvalWindow(QLabel):
                     x /= self.__original_pixmap.width()
                     y /= self.__original_pixmap.height()
                     self.idXYChanged.emit(self.__current_selected_id, x, y)
-    
+                
+                
+
             self.__current_selected_id = id
+
            
         return super().mousePressEvent(ev)
     
@@ -410,6 +421,7 @@ class FieldersGridView(QWidget):
 
 class CricketTrackingWidget(QWidget):
     untrackedIdsChanged = pyqtSignal(dict)
+
     def __init__(self, controller, parent = None):
         super().__init__(parent)
         self.setWindowTitle("Cricket Tracking")
@@ -421,6 +433,7 @@ class CricketTrackingWidget(QWidget):
         self.__main_layout = QGridLayout()
         self.__buttons_layout = QVBoxLayout()
         self.__cricket_view_map = CricketOvalWindow(self.__controller)
+        self.__cricket_view_map.idTrackCorrection.connect(self.__controller.idTrackCorrectSlot)
         self.__fielders_grid = FieldersGridView(self.__controller, self.__match_controller, "Fielders")
         self.__cricket_view_map.registerIDReceiver(self.__fielders_grid.update_current_selected_id)
         self.__current_mode = StateGenerator.MODE_DEFAULT

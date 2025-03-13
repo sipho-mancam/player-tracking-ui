@@ -236,6 +236,7 @@ class DataAssociationsController(QObject):
     '''
     untrackedIdsChangedSignal = pyqtSignal(dict)
     idXYChangedSignal = pyqtSignal(int, float, float)
+    idTrackCorrect = pyqtSignal(int)
     def __init__(self)->None:
         super().__init__()
         self.__tracking_model = TrackingDataModel()
@@ -246,6 +247,7 @@ class DataAssociationsController(QObject):
         self.init()
         self.__tracking_model.untrackedIdsChangedSignal.connect(self.untrackedIdsChangedSignal)
         self.idXYChangedSignal.connect(self.__tracking_model.idXYChangedSlot)
+        self.idTrackCorrect.connect(self.__tracking_model.idTrackCorrectSlot)
 
         
     def onAirModeSlot(self, flag)->None:
@@ -261,6 +263,9 @@ class DataAssociationsController(QObject):
             return
         
         self.idXYChangedSignal.emit(id, x, y)
+
+    def idTrackCorrectSlot(self, id)->None:
+        self.idTrackCorrect.emit(id)
         
     def init(self)->None:
         self.__state_generator = StateGenerator(self.__tracking_model)
