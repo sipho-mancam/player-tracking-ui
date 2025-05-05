@@ -8,7 +8,7 @@ from .controller import DataAssociationsController, StateGenerator, EventsContro
 import numpy as np
 import math
 from typing import Callable
-from cfg.paths_config import __CRICKET_STYLES__, __GREEN_CIRCLE__
+from cfg.paths_config import __CRICKET_STYLES__, __GREEN_CIRCLE__, __MINI_MAP_BG__
 
 
 
@@ -62,6 +62,8 @@ class CricketOvalWindow(QLabel):
         self.__controller = controller
         self.idXYChanged.connect(self.__controller.plottedIdCoordinatesChangedSlot)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setFixedHeight(int(1080*0.6))
+        self.setFixedWidth(int(1920*0.7))
         self.setObjectName("cricket_oval")
         self.initUI()
         self.radius = 10
@@ -76,8 +78,11 @@ class CricketOvalWindow(QLabel):
         self.__id_recievers.add(func)
 
     def initUI(self)->None:
-        self.__original_pixmap = QPixmap(__GREEN_CIRCLE__.as_posix())
-        self.draw_boundaries()
+        image = QImage(__MINI_MAP_BG__.as_posix())
+        image = image.scaledToWidth(self.width()).scaledToHeight(self.height())
+        
+        self.__original_pixmap = QPixmap(QPixmap.fromImage(image))
+        # self.draw_boundaries()
         self.setPixmap(self.__original_pixmap.copy())
         
     def draw_boundaries(self)->None:
@@ -135,6 +140,7 @@ class CricketOvalWindow(QLabel):
             painter.setPen(QPen(Qt.red, 1))
         mode = details.get('mode')
         status = details.get('state')
+
         if status == StateGenerator.UNASSOCIATED:
             if details.get('mode_state') != StateGenerator.STATE_CLEAR:
                 if details.get('mode') == StateGenerator.MODE_HIGHLIGHT:
@@ -145,6 +151,12 @@ class CricketOvalWindow(QLabel):
                     painter.setBrush(QColor(*color))
                 elif details.get('mode') == StateGenerator.MODE_BOWLER:
                     color = (255, 255, 0) 
+                    painter.setBrush(QColor(*color))
+                elif details.get("mode") == StateGenerator.MODE_TEAM_A:
+                    color = (255, 255, 0) 
+                    painter.setBrush(QColor(*color))
+                elif details.get("mode") == StateGenerator.MODE_TEAM_B:
+                    color = (0, 0, 0) 
                     painter.setBrush(QColor(*color))
 
             painter.drawEllipse(point, self.radius, self.radius) 
@@ -165,6 +177,13 @@ class CricketOvalWindow(QLabel):
                     color = (255, 0, 0)
                 elif details.get('mode') ==StateGenerator.MODE_HIDE:
                     color = (255, 255, 255) 
+                elif details.get("mode") == StateGenerator.MODE_TEAM_A:
+                    color = (255, 255, 0) 
+                    painter.setBrush(QColor(*color))
+                elif details.get("mode") == StateGenerator.MODE_TEAM_B:
+                    color = (0, 0, 0) 
+                    painter.setBrush(QColor(*color))
+
             jersey_number = details.get('jersey_number')
             brush = QBrush(QColor(*color))
             pen = QPen(QColor(*color))
@@ -202,6 +221,13 @@ class CricketOvalWindow(QLabel):
             elif details.get('mode') == StateGenerator.MODE_BOWLER:
                 color = (255, 255, 0) 
                 painter.setBrush(QColor(*color))
+            elif details.get("mode") == StateGenerator.MODE_TEAM_A:
+                color = (255, 255, 0) 
+                painter.setBrush(QColor(*color))
+            elif details.get("mode") == StateGenerator.MODE_TEAM_B:
+                color = (0, 0, 0) 
+                painter.setBrush(QColor(*color))
+
 
             painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
@@ -241,6 +267,7 @@ class CricketOvalWindow(QLabel):
         painter.setBrush(brush)
         painter.setRenderHint(QPainter.Antialiasing)
         self.current_state = self.__controller.get_current_state()
+ 
         if self.__controller.is_distance_object_available():
             distance_object = self.__controller.get_distance_object()
             # print(distance_object)
@@ -494,7 +521,10 @@ class CricketTrackingWidget(QWidget):
                 StateGenerator.MODE_HIGHLIGHT, 
                 StateGenerator.MODE_HIDE, 
                 StateGenerator.MODE_DISTANCE, 
-                StateGenerator.MODE_BOWLER]
+                StateGenerator.MODE_BOWLER,
+                StateGenerator.MODE_TEAM_A,
+                StateGenerator.MODE_TEAM_B
+            ]
 
 
     def initUI(self)->None:
@@ -558,6 +588,16 @@ class CricketTrackingWidget(QWidget):
         self.__current_selected = "bowler_button"
         self.__event_type = StateGenerator.MODE_MODE
         self.select_mode(StateGenerator.MODE_BOWLER)
+
+    def select_team_a(self)->None:
+        self.__current_selected = "team_a_btn"
+        self.__event_type = StateGenerator.MODE_TEAM_A
+        self.select_mode(StateGenerator.MODE_TEAM_A)
+
+    def select_team_b(self)->None:
+        self.__current_selected = "team_b_btn"
+        self.__event_type = StateGenerator.MODE_TEAM_B
+        self.select_mode(StateGenerator.MODE_TEAM_B)
         
     def initTopBar(self)->None:
         self.reset_button = StyledButton('Reset', self)
@@ -596,6 +636,15 @@ class CricketTrackingWidget(QWidget):
         self.bowler_button.clicked.connect(self.bowler_button.toggle_color)
         self.bowler_button.clicked.connect(self.select_bowler)
 
+        self.teamAButton = StyledButton("Team A", self)
+        self.teamAButton.setObjectName("team_a_btn")
+        self.teamAButton.clicked.connect(self.teamAButton.toggle_color)
+        self.teamAButton.clicked.connect(self.select_team_a)
+
+        self.teamBButton = StyledButton("Team B", self)
+        self.teamBButton.setObjectName("team_b_btn")
+        self.teamBButton.clicked.connect(self.teamBButton.toggle_color)
+        self.teamBButton.clicked.connect(self.select_team_b)
 
         self.__header_buttons.append(self.reset_button)
         self.__header_buttons.append(self.bowler_button)
@@ -604,6 +653,8 @@ class CricketTrackingWidget(QWidget):
         self.__header_buttons.append(self.hide_player)
         self.__header_buttons.append(self.clear_mode)
         self.__header_buttons.append(self.clear_dist)
+        self.__header_buttons.append(self.teamAButton)
+        self.__header_buttons.append(self.teamBButton)
         # self.__header_buttons.append(self.bowler)
 
         self.__header_buttons_layout.addWidget(self.highlight_button)
@@ -612,6 +663,10 @@ class CricketTrackingWidget(QWidget):
         self.__header_buttons_layout.addWidget(self.hide_player)
         self.__header_buttons_layout.addWidget(self.clear_mode)
         self.__header_buttons_layout.addWidget(self.clear_dist)
+
+        self.__header_buttons_layout.addWidget(self.teamAButton)
+        self.__header_buttons_layout.addWidget(self.teamBButton)
+
         self.__header_buttons_layout.addWidget(self.reset_button)
 
         self.__header_buttons_layout.setAlignment(Qt.AlignLeft)

@@ -23,6 +23,8 @@ class StateGenerator:
     MODE_BOWLER = 4
     MODE_MODE = 6 # Generic mode
     MODE_RESET = -0x01
+    MODE_TEAM_A = 7
+    MODE_TEAM_B = 8
 
 
     def __init__(self, tracking_model:TrackingDataModel)->None:
@@ -109,7 +111,7 @@ class StateGenerator:
             self.state = []
             tracking_data_raw = self.__tracking_model.get_data()
             tracking_data = tracking_data_raw['tracks']
-
+          
             if 'distance_object' in tracking_data_raw:
                 self.__is_distance = True
                 self.__distance_object = tracking_data_raw['distance_object']
@@ -139,11 +141,21 @@ class StateGenerator:
     
 
     def __create_default_state_object(self, track:dict)->None:
+        teamColor = track.get("mod")
+        if teamColor is None:
+            teamColor = "default"
+        elif teamColor == StateGenerator.MODE_TEAM_A:
+            teamColor = 0
+        elif teamColor == StateGenerator.MODE_TEAM_B:
+            teamColor = 1
+        else:
+            teamColor = "default"
+
         return {
                     'track_id':track.get('tracking-id'),
                     'coordinates': track.get('coordinates'),
                     'jersey_number':-1,#track.get('tracking-id'),
-                    'team':'default',
+                    'team':teamColor,
                     'color':self.__default_color, 
                     'kit_color':track.get('kit_color'),
                     'state':StateGenerator.UNASSOCIATED,
@@ -159,11 +171,21 @@ class StateGenerator:
         if player.get('alert') is None or not player.get('alert'):
             player['alert'] = track.get('alert')
 
+        teamColor = track.get("mod")
+        if teamColor is None:
+            teamColor = "default"
+        elif teamColor == StateGenerator.MODE_TEAM_A:
+            teamColor = 0
+        elif teamColor == StateGenerator.MODE_TEAM_B:
+            teamColor = 1
+        else:
+            teamColor = "default"
+
         return {
                     'track_id':track.get('tracking-id'),
                     'coordinates': track.get('coordinates'),
                     'jersey_number':player.get('jersey_number'),
-                    'team':player.get('team'),
+                    'team':teamColor,
                     'color':player.get('color'), 
                     'kit_color':track.get('kit_color'),
                     'state': StateGenerator.ASSOCIATED,

@@ -11,7 +11,7 @@ from camera.controller import CamerasManager
 from tracking_interface import EnableMultiViewDialog
 from team_information_view.widgets import MatchViewWidget, TeamLoadWidget, FormationManagerView
 from team_information_view.controller import MatchController
-from cfg.paths_config import __ASSETS_DIR__, __CRICKET_STYLES__
+from cfg.paths_config import __ASSETS_DIR__, __CRICKET_STYLES__, __MINI_MAP_BG__
 from system_control.controller import ColorPaletteController
 from system_control.palette import ColorPickerApp
 from recording.view import RecordingConfigDialog
@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
         self.__swap_teams  = QPushButton(" Switch Sides")
 
         ico_path = (__ASSETS_DIR__ / 'play-24.ico').resolve().as_posix()
-        bg_path = (__ASSETS_DIR__ / 'cricket_match_view_bg.png').resolve().as_posix()
+        bg_path = __MINI_MAP_BG__.resolve().as_posix()#(__ASSETS_DIR__ / 'cricket_match_view_bg.png').resolve().as_posix()
         icon = QIcon(ico_path)
         self.open_button.setFixedSize(100, 30)
         # self.open_button.setFixedHeight(24)
