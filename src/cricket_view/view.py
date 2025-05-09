@@ -159,6 +159,10 @@ class CricketOvalWindow(QLabel):
                     color = (0, 0, 0) 
                     painter.setBrush(QColor(*color))
 
+                elif details.get("mode") == StateGenerator.MODE_GK:
+                    color = (128, 0, 128) 
+                    painter.setBrush(QColor(*color))
+
             painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
             point.setX(point.x()-self.radius+round(self.radius*0.01))
@@ -182,6 +186,10 @@ class CricketOvalWindow(QLabel):
                     painter.setBrush(QColor(*color))
                 elif details.get("mode") == StateGenerator.MODE_TEAM_B:
                     color = (0, 0, 0) 
+                    painter.setBrush(QColor(*color))
+
+                elif details.get("mode") == StateGenerator.MODE_GK:
+                    color = (128, 0, 128) 
                     painter.setBrush(QColor(*color))
 
             jersey_number = details.get('jersey_number')
@@ -226,6 +234,9 @@ class CricketOvalWindow(QLabel):
                 painter.setBrush(QColor(*color))
             elif details.get("mode") == StateGenerator.MODE_TEAM_B:
                 color = (0, 0, 0) 
+                painter.setBrush(QColor(*color))
+            elif details.get("mode") == StateGenerator.MODE_GK:
+                color = (128, 0, 128) 
                 painter.setBrush(QColor(*color))
 
 
@@ -311,7 +322,6 @@ class CricketOvalWindow(QLabel):
                     # Disengage this id if it's on a tracked state to a plotted state and place
                     # it at the center of the board to be controlled'
                     self.idTrackCorrection.emit(id)
-
             else:
                 if self.__current_selected_id is not None:
                     pos = self.mapFrom(self, ev.pos())
@@ -319,12 +329,7 @@ class CricketOvalWindow(QLabel):
                     x /= self.__original_pixmap.width()
                     y /= self.__original_pixmap.height()
                     self.idXYChanged.emit(self.__current_selected_id, x, y)
-                
-                
-
             self.__current_selected_id = id
-
-           
         return super().mousePressEvent(ev)
     
     def mouseMoveEvent(self, ev):
@@ -523,7 +528,8 @@ class CricketTrackingWidget(QWidget):
                 StateGenerator.MODE_DISTANCE, 
                 StateGenerator.MODE_BOWLER,
                 StateGenerator.MODE_TEAM_A,
-                StateGenerator.MODE_TEAM_B
+                StateGenerator.MODE_TEAM_B,
+                StateGenerator.MODE_GK
             ]
 
 
@@ -598,6 +604,11 @@ class CricketTrackingWidget(QWidget):
         self.__current_selected = "team_b_btn"
         self.__event_type = StateGenerator.MODE_TEAM_B
         self.select_mode(StateGenerator.MODE_TEAM_B)
+
+    def select_gk(self)->None:
+        self.__current_selected = "goalkeeper"
+        self.__event_type = StateGenerator.MODE_GK
+        self.select_mode(StateGenerator.MODE_GK)
         
     def initTopBar(self)->None:
         self.reset_button = StyledButton('Reset', self)
@@ -646,6 +657,11 @@ class CricketTrackingWidget(QWidget):
         self.teamBButton.clicked.connect(self.teamBButton.toggle_color)
         self.teamBButton.clicked.connect(self.select_team_b)
 
+        self.gkButton = StyledButton("GK", self)
+        self.gkButton.setObjectName("goalkeeper")
+        self.gkButton.clicked.connect(self.gkButton.toggle_color)
+        self.gkButton.clicked.connect(self.select_gk)
+
         self.__header_buttons.append(self.reset_button)
         self.__header_buttons.append(self.bowler_button)
         self.__header_buttons.append(self.distance)
@@ -655,6 +671,7 @@ class CricketTrackingWidget(QWidget):
         self.__header_buttons.append(self.clear_dist)
         self.__header_buttons.append(self.teamAButton)
         self.__header_buttons.append(self.teamBButton)
+        self.__header_buttons.append(self.gkButton)
         # self.__header_buttons.append(self.bowler)
 
         self.__header_buttons_layout.addWidget(self.highlight_button)
@@ -663,12 +680,10 @@ class CricketTrackingWidget(QWidget):
         self.__header_buttons_layout.addWidget(self.hide_player)
         self.__header_buttons_layout.addWidget(self.clear_mode)
         self.__header_buttons_layout.addWidget(self.clear_dist)
-
         self.__header_buttons_layout.addWidget(self.teamAButton)
         self.__header_buttons_layout.addWidget(self.teamBButton)
-
         self.__header_buttons_layout.addWidget(self.reset_button)
-
+        self.__header_buttons_layout.addWidget(self.gkButton)
         self.__header_buttons_layout.setAlignment(Qt.AlignLeft)
     
     def closeEvent(self, a0):

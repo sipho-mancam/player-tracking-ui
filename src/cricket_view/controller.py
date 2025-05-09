@@ -25,6 +25,7 @@ class StateGenerator:
     MODE_RESET = -0x01
     MODE_TEAM_A = 7
     MODE_TEAM_B = 8
+    MODE_GK = 9
 
 
     def __init__(self, tracking_model:TrackingDataModel)->None:
