@@ -22,11 +22,15 @@ class StateGenerator:
     MODE_DISTANCE = 3
     MODE_BOWLER = 4
     MODE_MODE = 6 # Generic mode
-    MODE_RESET = -0x01
+   
     MODE_TEAM_A = 7
     MODE_TEAM_B = 8
     MODE_GK = 9
-
+    MODE_START_EVENT = 10
+    MODE_SELECT_KICKER = 11
+    MODE_INSTRUCTION = 12
+    MODE_RESET_KICKER = 13
+    MODE_RESET = -0x01
 
     def __init__(self, tracking_model:TrackingDataModel)->None:
         self.state = []
@@ -206,6 +210,30 @@ class EventsController:
         self.__current_event = {}
         self.__kafka_producer = KProducer(__KAFKA_CONFIG__)
         self.__events_topic = "system-events"
+
+
+    def startGameEventSlot(self):
+        evt = self._build_event_object(StateGenerator.MODE_INSTRUCTION, 
+                                 StateGenerator.MODE_START_EVENT,
+                                 "",
+                                 -1)
+        self.send_current_event(evt)
+        print("Game Event Start")
+
+    def resetStateEventSlot(self):
+        evt = self._build_event_object(StateGenerator.MODE_INSTRUCTION,
+                                 StateGenerator.MODE_RESET,
+                                 "",
+                                 -1)
+        self.send_current_event(evt)
+        print("reset State")
+
+    
+
+    def selectKickerEventSlot(self):
+        print("Reset Kicker Event Slot")
+
+
     
     def _build_event_object(self, type, mode, state, id)->dict:
         event = {
