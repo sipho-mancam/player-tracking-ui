@@ -616,36 +616,45 @@ class CricketTrackingWidget(QWidget):
         self.reset_button.clicked.connect(self.reset_button.toggle_color)
         self.reset_button.clicked.connect(self.select_reset)
         self.reset_button.setEnabled(False)
+        self.reset_button.setEnabled(False)
 
         self.distance = StyledButton('Distance', self)   
         self.distance.setObjectName("distance_cal")     
         self.distance.clicked.connect(self.distance.toggle_color)
         self.distance.clicked.connect(self.select_distance)
+        # self.distance.setEnabled(False)
       
         self.highlight_button = StyledButton('Highlight', self)
         self.highlight_button.setObjectName('highlight')
         self.highlight_button.clicked.connect(self.highlight_button.toggle_color)
         self.highlight_button.clicked.connect(self.select_highlight)
+        self.highlight_button.setEnabled(False)
 
         self.hide_player = StyledButton('Hide Player', self)
         self.hide_player.setObjectName('hide_player')
         self.hide_player.clicked.connect(self.hide_player.toggle_color)
         self.hide_player.clicked.connect(self.select_hide)
+        self.hide_player.setEnabled(False)
 
         self.clear_mode = StyledButton('Clear Modes', self)
         self.clear_mode.setObjectName('clear_mode')
         self.clear_mode.clicked.connect(self.clear_mode.toggle_color)
         self.clear_mode.clicked.connect(self.select_clear)
+        self.clear_mode.setEnabled(False)
+
 
         self.clear_dist = StyledButton('Clear Distance', self)
         self.clear_dist.setObjectName('clear_dist')
         self.clear_dist.clicked.connect(self.clear_dist.toggle_color)
         self.clear_dist.clicked.connect(self.select_dist)
+        # self.clear_dist.setEnabled(False)
+
 
         self.bowler_button = StyledButton('BOWLER', self)
         self.bowler_button.setObjectName("bowler_button")
         self.bowler_button.clicked.connect(self.bowler_button.toggle_color)
         self.bowler_button.clicked.connect(self.select_bowler)
+        self.bowler_button.setEnabled(False)
 
         self.teamAButton = StyledButton("Team A", self)
         self.teamAButton.setObjectName("team_a_btn")
@@ -682,8 +691,9 @@ class CricketTrackingWidget(QWidget):
         self.__header_buttons_layout.addWidget(self.clear_dist)
         self.__header_buttons_layout.addWidget(self.teamAButton)
         self.__header_buttons_layout.addWidget(self.teamBButton)
-        self.__header_buttons_layout.addWidget(self.reset_button)
         self.__header_buttons_layout.addWidget(self.gkButton)
+
+        self.__header_buttons_layout.addWidget(self.reset_button)
         self.__header_buttons_layout.setAlignment(Qt.AlignLeft)
     
     def closeEvent(self, a0):
