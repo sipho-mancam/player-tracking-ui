@@ -291,6 +291,7 @@ class CricketOvalWindow(QLabel):
         
         if track_id == self._kicker_id and self._kicker_id != -1:
             w = 15
+            painter.setBrush(QBrush(QColor(255, 0, 0)))
             painter.drawRect(position.x()-round(w/2), position.y()-round(w/2), w, w)
         else:
             painter.drawEllipse(position, self.radius, self.radius) 
@@ -343,7 +344,7 @@ class CricketOvalWindow(QLabel):
         painter.end()
         self.setPixmap(pix_map)
 
-    def find_track(self, id, tracks:list)->dict|None:
+    def find_track(self, id, tracks:list)->dict:
         for track in tracks:
             if track.get('track_id') == id:
                 return track

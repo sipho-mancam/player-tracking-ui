@@ -41,7 +41,7 @@ class FormationModel:
             'positions': self.__positions
         }
     
-    def find_player_position(self, position)->dict|None:
+    def find_player_position(self, position)->dict:
         for pos in self.__positions:
             p_ = pos['position']
             if p_ == position:
@@ -197,10 +197,10 @@ class TeamModel:
     def is_team_init(self)->bool:
         return self.__is_init
     
-    def is_fielding(self)->bool|None:
+    def is_fielding(self)->bool:
         return self.__fielding_team
     
-    def get_name(self)->str|None:
+    def get_name(self)->str:
         return self.__name
     
     def set_fielding(self)->None:
@@ -269,7 +269,7 @@ class TeamModel:
             if player.jersey_number == jersey_number:
                 player.set_player_data(data)
 
-    def get_player_data(self, jersey_number)->dict|None:
+    def get_player_data(self, jersey_number)->dict:
         for player in self.__players:
             if player.jersey_number == jersey_number:
                 return player.get_player_data()
@@ -409,11 +409,11 @@ class MatchModel:
     def is_bowling_team_init(self)->bool:
         return self.__batting_team is not None
 
-    def get_player_data(self, team_name, jersey_number)->dict|None:
+    def get_player_data(self, team_name, jersey_number)->dict:
         team = self.__teams_data_structure[team_name]
         return team.get_player_data(jersey_number)
     
-    def get_team_info(self, team_name)->dict|None:
+    def get_team_info(self, team_name)->dict:
         team = self.__teams_data_structure[team_name]
         return team.get_team_info()
 

@@ -39,7 +39,7 @@ class FramesModel:
             frame = self._frames_buffer[0]
             self._height, self._width, _ = frame.shape
 
-    def next_frame(self)->cv.Mat|None:
+    def next_frame(self)->cv.Mat:
         if len(self._frames_buffer) == 0:
             return
         
@@ -67,7 +67,7 @@ class CameraCalibrationModel:
         self._aligment_points = np.array([], dtype=np.float32)
         self._transformed_dst_pts = np.array([], dtype=np.float32)
 
-    def update_perspective(self)->np.ndarray|None:
+    def update_perspective(self)->np.ndarray:
         if len(self._src_poly) == 0:
             return 
         self._perspective_matrix = cv.getPerspectiveTransform(np.array(self._src_poly, dtype=np.float32), 
@@ -90,7 +90,7 @@ class CameraCalibrationModel:
         if self._perspective_matrix is not None:
             self._transformed_dst_pts = cv.perspectiveTransform(np.array([scaled_alignment_pts]), self._perspective_matrix)[0]
 
-    def get_perspective_matrix(self)->np.ndarray|None:
+    def get_perspective_matrix(self)->np.ndarray:
         return self._perspective_matrix
     
     def update_src_poly(self, poly:np.ndarray)->None:
@@ -210,7 +210,7 @@ class CricketCalibrationModel:
         return self._current_active_model.get_transformed_dst_pts()
 
 
-    def get_perspective_matrix(self)->cv.Mat|None:
+    def get_perspective_matrix(self)->cv.Mat:
         return self._current_active_model.get_perspective_matrix()
     
     def get_src_poly(self)->np.ndarray:
@@ -232,5 +232,5 @@ class CricketCalibrationModel:
     def update_src_poly(self, poly:np.ndarray)->None:
         self._current_active_model.update_src_poly(poly)
 
-    def next_frame(self)->cv.Mat|None:
+    def next_frame(self)->cv.Mat:
         return self._current_active_model.next_frame()
