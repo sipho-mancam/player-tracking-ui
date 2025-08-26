@@ -1,7 +1,8 @@
 from PyQt5.QtCore import Qt, QPoint, QTimer
 from PyQt5.QtGui import QImage, QPixmap, QMouseEvent
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel,
-                             QSizePolicy, QHBoxLayout, QMessageBox)
+                             QSizePolicy, QHBoxLayout, QMessageBox, QDialog)
+from PyQt5.QtCore import pyqtSignal
 from pathlib import Path
 from .common_widget import *
 from .controller import DataAssociationsController, StateGenerator, EventsController
@@ -15,6 +16,31 @@ from cfg.paths_config import __CRICKET_STYLES__, __GREEN_CIRCLE__, __MINI_MAP_BG
 def load_style_sheet(file_name)->str:
     with open(file_name, 'r') as fp:
         return fp.read()
+    
+class KickerSideDialog(QDialog):
+    kickSideSignal = pyqtSignal(tuple)
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.__left = QPushButton("Left Side",)
+        self.__right = QPushButton("Right Side")
+        self._layout = QHBoxLayout()
+        self._layout.addWidget(self.__left)
+        self._layout.addWidget(self.__right)
+        self.setLayout(self._layout)
+        self.setWindowModality(Qt.WindowModality.ApplicationModal)
+        self.setWindowTitle("Select Kick Side")
+        self.__right.clicked.connect(self.rightClicked)
+        self.__left.clicked.connect(self.leftClicked)
+
+    
+    def leftClicked(self):
+        self.close()
+        self.kickSideSignal.emit((0.0, 0.5))
+    
+    def rightClicked(self):
+        self.close()
+        self.kickSideSignal.emit((1.0, 0.5))
+
 
 class UITrackObjectState:
     def __init__(self, radius):
@@ -53,6 +79,7 @@ class UITrackObjectState:
 class CricketOvalWindow(QLabel):
     idXYChanged = pyqtSignal(int, float, float)
     idTrackCorrection = pyqtSignal(int)
+
     def __init__(self, controller:DataAssociationsController, parent=None)->None:
         super().__init__(parent)
         self._original_pixmap = None
@@ -70,9 +97,17 @@ class CricketOvalWindow(QLabel):
         self.__objects_state = UITrackObjectState(self.radius)
         self.__current_selected_id = None
         # A list of callback functions waiting to receive an ID when it's clicked
+        self._kicker_id = -1
+        self._kick_side = None
         self.__id_recievers = set()
         self.__id_click_callbacks = set()
         self.current_state = None
+
+    def setKickerIdSlot(self, id):
+        self._kicker_id = id
+
+    def resetKickerId(self):
+        self._kicker_id = -1
      
     def registerIDReceiver(self, func:Callable)->None:
         self.__id_recievers.add(func)
@@ -140,6 +175,7 @@ class CricketOvalWindow(QLabel):
             painter.setPen(QPen(Qt.red, 1))
         mode = details.get('mode')
         status = details.get('state')
+        position = QPoint(point.x(), point.y())
 
         if status == StateGenerator.UNASSOCIATED:
             if details.get('mode_state') != StateGenerator.STATE_CLEAR:
@@ -163,7 +199,6 @@ class CricketOvalWindow(QLabel):
                     color = (128, 0, 128) 
                     painter.setBrush(QColor(*color))
 
-            painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
             point.setX(point.x()-self.radius+round(self.radius*0.01))
             font = painter.font()
@@ -174,7 +209,6 @@ class CricketOvalWindow(QLabel):
             painter.drawText(point, f"{track_id}".zfill(2))
         
         elif status == StateGenerator.ASSOCIATED:
-            
             color =  details.get('color')   
             if details.get('mode_state') != StateGenerator.STATE_CLEAR:
                 if details.get('mode') == StateGenerator.MODE_HIGHLIGHT:
@@ -197,7 +231,7 @@ class CricketOvalWindow(QLabel):
             pen = QPen(QColor(*color))
             painter.setBrush(brush)
             painter.setPen(pen)
-            painter.drawEllipse(point, self.radius, self.radius) 
+            # painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()+round(self.radius*0.5))
             point.setX(point.x()-round(self.radius*0.8))
             font = painter.font()
@@ -209,7 +243,7 @@ class CricketOvalWindow(QLabel):
         
         elif status == StateGenerator.CLICKED and (mode == StateGenerator.MODE_DEFAULT or mode is None):
             painter.setPen(QPen(Qt.yellow, 3))
-            painter.drawEllipse(point, self.radius, self.radius) 
+            # painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
             point.setX((point.x()-self.radius)+round(self.radius*0.01))
             font = painter.font()
@@ -240,7 +274,7 @@ class CricketOvalWindow(QLabel):
                 painter.setBrush(QColor(*color))
 
 
-            painter.drawEllipse(point, self.radius, self.radius) 
+            # painter.drawEllipse(point, self.radius, self.radius) 
             point.setY(point.y()-self.radius)
             point.setX(point.x()-self.radius+round(self.radius*0.01))
             font = painter.font()
@@ -249,6 +283,18 @@ class CricketOvalWindow(QLabel):
             painter.setFont(font)
             painter.setPen(QPen(Qt.blue, 2))
             painter.drawText(point, f"{track_id}".zfill(2))
+        
+        if status == StateGenerator.CLICKED and (mode == StateGenerator.MODE_DEFAULT or mode is None):
+            painter.setPen(QPen(Qt.yellow, 3))
+        else:
+            painter.setPen(QPen(painter.brush().color()))
+        
+        if track_id == self._kicker_id and self._kicker_id != -1:
+            w = 15
+            painter.setBrush(QBrush(QColor(255, 0, 0)))
+            painter.drawRect(position.x()-round(w/2), position.y()-round(w/2), w, w)
+        else:
+            painter.drawEllipse(position, self.radius, self.radius) 
 
         painter.setBrush(default_brush)
         painter.setPen(default_pen)
@@ -453,6 +499,11 @@ class FieldersGridView(QWidget):
 
 class CricketTrackingWidget(QWidget):
     untrackedIdsChanged = pyqtSignal(dict)
+    startEventSignal = pyqtSignal()
+    selectKickerSignal = pyqtSignal(int)
+    resetStateSignal = pyqtSignal()
+    resetKickerSignal = pyqtSignal()
+
 
     def __init__(self, controller, parent = None):
         super().__init__(parent)
@@ -476,6 +527,11 @@ class CricketTrackingWidget(QWidget):
         self.__distance_ids = []
         self.__events_controller = EventsController()
         self.__header_buttons = []
+        self.__kickSideDialog = KickerSideDialog(self)
+        self.__kick_side = None
+
+        self.__kickSideDialog.kickSideSignal.connect(self.setKickSide)
+
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.initTopBar()
@@ -487,6 +543,10 @@ class CricketTrackingWidget(QWidget):
     def toggleOnAirMode(self, flag)->None:
         self.__on_air_flag = flag
         self.__controller.onAirModeSlot(flag)
+    
+    def setKickSide(self, point:tuple):
+        self.__kick_side = point
+        print("Kick Side: ", self.__kick_side)
     
     def plotIdActivated(self, id)->None:
         self.__controller.enableIdPlot(id)
@@ -505,13 +565,25 @@ class CricketTrackingWidget(QWidget):
             self.__events_controller.send_current_event()
             self.__event_type = StateGenerator.MODE_DEFAULT
 
+        elif self.__current_mode == StateGenerator.MODE_SELECT_KICKER:
+            self.__mode_ids = id
+            event = self.__events_controller._build_event_object(
+                StateGenerator.MODE_INSTRUCTION,
+                StateGenerator.MODE_SELECT_KICKER,
+                StateGenerator.STATE_SET,
+                self.__mode_ids
+            )
+            event["data"]["kick_side"] = self.__kick_side
+            self.__events_controller.send_current_event(event)
+            self.selectKickerSignal.emit(id)
+            
         elif self.__current_mode != StateGenerator.MODE_DISTANCE:
             self.__mode_ids = id
             event = self.__events_controller._build_event_object(self.__current_mode, 
                                                          self.__current_mode, 
                                                          StateGenerator.STATE_SET if self.__current_mode != StateGenerator.MODE_DEFAULT else StateGenerator.STATE_CLEAR,
                                                          self.__mode_ids)
-            self.__events_controller.send_current_event()
+            self.__events_controller.send_current_event() 
         else:
            self.__distance_ids.append(id)
            if len(self.__distance_ids) >= 2:
@@ -558,8 +630,8 @@ class CricketTrackingWidget(QWidget):
         self.__current_selected = "highlight"
         self.select_mode(StateGenerator.MODE_HIGHLIGHT)
 
-    def select_hide(self)->None:
-        self.__current_selected = "hide_player"
+    def select_show_player(self)->None:
+        self.__current_selected = "show_player"
         self.select_mode(StateGenerator.MODE_HIDE)
 
     def select_clear(self)->None:
@@ -589,12 +661,33 @@ class CricketTrackingWidget(QWidget):
                                                          StateGenerator.STATE_SET,
                                                          -1)
         self.__events_controller.send_current_event() 
+        self.resetStateSignal.emit()
 
-    def select_bowler(self)->None:
-        self.__current_selected = "bowler_button"
+    
+    def select_reset_kicker(self)->None:
+        self.__current_selected = "reset_kicker_button"
+        self.select_mode(StateGenerator.MODE_RESET_KICKER)
+        event = self.__events_controller._build_event_object(StateGenerator.MODE_INSTRUCTION, 
+                                                         StateGenerator.MODE_RESET_KICKER, 
+                                                         StateGenerator.STATE_SET,
+                                                         -1)
+        self.__events_controller.send_current_event() 
+        self.resetKickerSignal.emit()
+
+
+    def select_start_event(self)->None:
+        self.__current_selected = "start_event_button"
         self.__event_type = StateGenerator.MODE_MODE
-        self.select_mode(StateGenerator.MODE_BOWLER)
+        self.select_mode(StateGenerator.MODE_START_EVENT)
+        self.startEventSignal.emit()
 
+    def select_select_kicker(self)->None:
+        self.__current_selected = "select_kicker_button"
+        self.__event_type = StateGenerator.MODE_MODE
+        self.__kickSideDialog.open()
+        self.select_mode(StateGenerator.MODE_SELECT_KICKER)
+        
+        
     def select_team_a(self)->None:
         self.__current_selected = "team_a_btn"
         self.__event_type = StateGenerator.MODE_TEAM_A
@@ -611,50 +704,42 @@ class CricketTrackingWidget(QWidget):
         self.select_mode(StateGenerator.MODE_GK)
         
     def initTopBar(self)->None:
+
+        self.start_event_button = StyledButton('Start Event', self)
+        self.start_event_button.setObjectName("start_event_button")
+        self.start_event_button.clicked.connect(self.start_event_button.toggle_color)
+        self.start_event_button.clicked.connect(self.select_start_event)
+        # This signal tells data aggregator to pause the continuos state and only update and send the last frame.
+        self.startEventSignal.connect(self.__events_controller.startGameEventSlot)
+        self.start_event_button.setEnabled(True)
+
+        self.select_kicker = StyledButton('Select Kicker', self)
+        self.select_kicker.setObjectName("select_kicker_button")
+        self.select_kicker.clicked.connect(self.select_kicker.toggle_color)
+        self.select_kicker.clicked.connect(self.select_select_kicker)
+        self.selectKickerSignal.connect(self.__events_controller.selectKickerEventSlot)
+        self.selectKickerSignal.connect(self.__cricket_view_map.setKickerIdSlot)
+        self.select_kicker.setEnabled(True)
+
         self.reset_button = StyledButton('Reset', self)
         self.reset_button.setObjectName("reset_button")
         self.reset_button.clicked.connect(self.reset_button.toggle_color)
         self.reset_button.clicked.connect(self.select_reset)
-        self.reset_button.setEnabled(False)
-        self.reset_button.setEnabled(False)
+        self.resetStateSignal.connect(self.__events_controller.resetStateEventSlot)
+        self.resetStateSignal.connect(self.__cricket_view_map.resetKickerId)
+        self.reset_button.setEnabled(True)
 
-        self.distance = StyledButton('Distance', self)   
-        self.distance.setObjectName("distance_cal")     
-        self.distance.clicked.connect(self.distance.toggle_color)
-        self.distance.clicked.connect(self.select_distance)
-        # self.distance.setEnabled(False)
-      
-        self.highlight_button = StyledButton('Highlight', self)
-        self.highlight_button.setObjectName('highlight')
-        self.highlight_button.clicked.connect(self.highlight_button.toggle_color)
-        self.highlight_button.clicked.connect(self.select_highlight)
-        self.highlight_button.setEnabled(False)
+        self.reset_kicker_button = StyledButton('Reset Kicker', self)
+        self.reset_kicker_button.setObjectName("reset_kicker_button")
+        self.reset_kicker_button.clicked.connect(self.reset_kicker_button.toggle_color)
+        self.reset_kicker_button.clicked.connect(self.select_reset_kicker)
+        self.resetKickerSignal.connect(self.__cricket_view_map.resetKickerId)
+        self.reset_kicker_button.setEnabled(True)
 
-        self.hide_player = StyledButton('Hide Player', self)
-        self.hide_player.setObjectName('hide_player')
-        self.hide_player.clicked.connect(self.hide_player.toggle_color)
-        self.hide_player.clicked.connect(self.select_hide)
-        self.hide_player.setEnabled(False)
-
-        self.clear_mode = StyledButton('Clear Modes', self)
-        self.clear_mode.setObjectName('clear_mode')
-        self.clear_mode.clicked.connect(self.clear_mode.toggle_color)
-        self.clear_mode.clicked.connect(self.select_clear)
-        self.clear_mode.setEnabled(False)
-
-
-        self.clear_dist = StyledButton('Clear Distance', self)
-        self.clear_dist.setObjectName('clear_dist')
-        self.clear_dist.clicked.connect(self.clear_dist.toggle_color)
-        self.clear_dist.clicked.connect(self.select_dist)
-        # self.clear_dist.setEnabled(False)
-
-
-        self.bowler_button = StyledButton('BOWLER', self)
-        self.bowler_button.setObjectName("bowler_button")
-        self.bowler_button.clicked.connect(self.bowler_button.toggle_color)
-        self.bowler_button.clicked.connect(self.select_bowler)
-        self.bowler_button.setEnabled(False)
+        self.show_player = StyledButton('Show Player', self)
+        self.show_player.setObjectName('show_player')
+        self.show_player.clicked.connect(self.show_player.toggle_color)
+        self.show_player.clicked.connect(self.select_show_player)
 
         self.teamAButton = StyledButton("Team A", self)
         self.teamAButton.setObjectName("team_a_btn")
@@ -665,34 +750,21 @@ class CricketTrackingWidget(QWidget):
         self.teamBButton.setObjectName("team_b_btn")
         self.teamBButton.clicked.connect(self.teamBButton.toggle_color)
         self.teamBButton.clicked.connect(self.select_team_b)
-
-        self.gkButton = StyledButton("GK", self)
-        self.gkButton.setObjectName("goalkeeper")
-        self.gkButton.clicked.connect(self.gkButton.toggle_color)
-        self.gkButton.clicked.connect(self.select_gk)
-
+       
         self.__header_buttons.append(self.reset_button)
-        self.__header_buttons.append(self.bowler_button)
-        self.__header_buttons.append(self.distance)
-        self.__header_buttons.append(self.highlight_button)
-        self.__header_buttons.append(self.hide_player)
-        self.__header_buttons.append(self.clear_mode)
-        self.__header_buttons.append(self.clear_dist)
+        self.__header_buttons.append(self.show_player)
         self.__header_buttons.append(self.teamAButton)
         self.__header_buttons.append(self.teamBButton)
-        self.__header_buttons.append(self.gkButton)
-        # self.__header_buttons.append(self.bowler)
-
-        self.__header_buttons_layout.addWidget(self.highlight_button)
-        self.__header_buttons_layout.addWidget(self.bowler_button)
-        self.__header_buttons_layout.addWidget(self.distance)        
-        self.__header_buttons_layout.addWidget(self.hide_player)
-        self.__header_buttons_layout.addWidget(self.clear_mode)
-        self.__header_buttons_layout.addWidget(self.clear_dist)
+        self.__header_buttons.append(self.start_event_button)
+        self.__header_buttons.append(self.select_kicker)
+        self.__header_buttons.append(self.reset_kicker_button)
+       
+        self.__header_buttons_layout.addWidget(self.start_event_button)
+        self.__header_buttons_layout.addWidget(self.select_kicker)
+        self.__header_buttons_layout.addWidget(self.show_player)
         self.__header_buttons_layout.addWidget(self.teamAButton)
         self.__header_buttons_layout.addWidget(self.teamBButton)
-        self.__header_buttons_layout.addWidget(self.gkButton)
-
+        self.__header_buttons_layout.addWidget(self.reset_kicker_button)
         self.__header_buttons_layout.addWidget(self.reset_button)
         self.__header_buttons_layout.setAlignment(Qt.AlignLeft)
     

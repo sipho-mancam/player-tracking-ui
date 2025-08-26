@@ -164,7 +164,11 @@ class PlayerItem(QWidget):
             self.__text_edit.setText("")
             self.__text.show()
 
+<<<<<<< HEAD
     def mousePressEvent(self, event: QMouseEvent) -> None:
+=======
+    def mousePressEvent(self, event: QMouseEvent ) -> None:
+>>>>>>> Rugby_gui
         # On Click, we hide the text and show a text label to set the text
         self.__text.hide()
         self.__text_edit.show()
