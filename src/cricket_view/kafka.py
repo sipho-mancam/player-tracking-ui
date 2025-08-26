@@ -115,7 +115,7 @@ class KConsumer(QObject):
         self.__data_event.clear()
         return data_piece
        
-    def get_current_topic(self)->str|None:
+    def get_current_topic(self)->str:
         return self.received_topic
 
 

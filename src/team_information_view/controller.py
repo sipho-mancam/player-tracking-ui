@@ -42,10 +42,10 @@ class MatchController:
         self.__match_model.registerPlayerDataChanged(func)
 
     
-    def get_fielding_team_info(self)->dict|None:
+    def get_fielding_team_info(self)->dict:
         return self.__match_model.get_fielding_team_info()
     
-    def get_bowling_team_info(self)->dict|None:
+    def get_bowling_team_info(self)->dict:
         return self.__match_model.get_bowling_team_info()
     
     def is_fielding_team_init(self)->bool:

@@ -38,7 +38,7 @@ class SvgManipulator(QWidget):
             elem = elems.item(i).toElement()
             elem.setAttribute('fill', color)
     
-    def set_jersey_number(self, number:int|str)->None:
+    def set_jersey_number(self, number:int)->None:
         if int(number)//10 ==0:
             number = f"0{number}"
         
@@ -164,7 +164,7 @@ class PlayerItem(QWidget):
             self.__text_edit.setText("")
             self.__text.show()
 
-    def mousePressEvent(self, event: QMouseEvent | None) -> None:
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         # On Click, we hide the text and show a text label to set the text
         self.__text.hide()
         self.__text_edit.show()
@@ -255,7 +255,7 @@ class PlayerView(QWidget):
         self.svg_holder = SvgManipulator(self.__jersey_number, self.__color)
         return self.svg_holder
     
-    def mousePressEvent(self, event: QMouseEvent | None) -> None:
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         player_stats = PlayerStatsDialog({'jersey_number':self.__jersey_number, 'Position':self.__position})
         player_stats.show()
         player_stats.exec_()
@@ -749,7 +749,7 @@ class RoundButton(QPushButton):
             print(self.x(), self.y())
 
 class FormationManagerView(QWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Formations Manager")
 

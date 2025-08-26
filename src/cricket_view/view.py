@@ -298,7 +298,7 @@ class CricketOvalWindow(QLabel):
         painter.end()
         self.setPixmap(pix_map)
 
-    def find_track(self, id, tracks:list)->dict|None:
+    def find_track(self, id, tracks:list)->dict:
         for track in tracks:
             if track.get('track_id') == id:
                 return track

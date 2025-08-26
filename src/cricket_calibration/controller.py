@@ -43,7 +43,7 @@ class CalibrationController:
         # print(self.__model.get_transformed_dst_pts())
         return self.__model.get_transformed_dst_pts()
     
-    def get_perspective(self)->cv.Mat|None:
+    def get_perspective(self)->cv.Mat:
         return self.__model.get_perspective_matrix()
     
     def get_calibration_state(self)->dict:

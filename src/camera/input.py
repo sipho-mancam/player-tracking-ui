@@ -125,7 +125,7 @@ class CameraModel(BInputSource):
     def get_dimensions(self)->tuple:
         return self._dimensions
 
-    def next_frame(self)->cv.Mat|None:
+    def next_frame(self)->cv.Mat:
         return self.__current_frame.copy()
 
     def _is_updated(self)->bool:
