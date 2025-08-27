@@ -1,4 +1,4 @@
-from cricket_view.view import CricketTrackingWidget, load_style_sheet, OnAirWindow
+from cricket_view.view import TrackingWidget, load_style_sheet, OnAirWindow
 from PyQt5.QtWidgets import QApplication
 import sys
 from cfg.paths_config import __CRICKET_STYLES__

@@ -34,8 +34,6 @@ class CameraController:
     def stop(self)->None:
         if self.__worker is not None:
             self.__stop_event.set()
-            self.__worker.join()
-            # self.__model.stop()
 
 class CamerasManager:
     def __init__(self, views_list:list[CameraWidget])->None:
@@ -68,8 +66,9 @@ class CamerasManager:
             print(f"Stopping Controller {i} ...")
             controller.stop()
             print(f"Controller {i}, stopped ...")
-
+        print("Stoping Input Manager")
         self.__input_manager.stop()
+        print("Input Manager Stopped ...")
 
        
         

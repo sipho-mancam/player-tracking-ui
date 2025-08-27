@@ -136,8 +136,8 @@ class CameraModel(BInputSource):
 
     def next(self)->cv.Mat:
         # This waits until the manager triggers it.
-        self.__event_object.acquire(True)
-        self.__event_object.wait_for(self._is_updated)
+        self.__event_object.acquire(True, 1)
+        self.__event_object.wait_for(self._is_updated, 1)
         self._data_updated = False
         return self.__current_frame
     
@@ -203,11 +203,14 @@ class InputManager:
 
     def stop(self)->None:
         self.__stop_event.set()
-        self._data_ready_event.release()
+        try:
+            self._data_ready_event.release()
+        except RuntimeError as re:
+            pass
         
         if self.worker is not None:
             self.__stop_event.set()
-            self.worker.join() 
+            #self.worker.join() 
             return 
         
     def get_frames_model(self)->list[CameraModel]:

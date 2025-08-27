@@ -15,7 +15,7 @@ from cfg.paths_config import __ASSETS_DIR__, __CRICKET_STYLES__, __MINI_MAP_BG__
 from system_control.controller import ColorPaletteController
 from system_control.palette import ColorPickerApp
 from recording.view import RecordingConfigDialog
-from cricket_view.view import CricketTrackingWidget, load_style_sheet, OnAirWindow
+from cricket_view.view import TrackingWidget, load_style_sheet, OnAirWindow
 from cricket_calibration.view import CalibrationPage
 
 class MainWindow(QMainWindow):
@@ -160,14 +160,7 @@ class MainWindow(QMainWindow):
 
     def open_formation_manager(self)->None:
         return
-        if self.__formations_view is None:
-            self.__formations_view = FormationManagerView(self.parentWidget())
-            if self.__match_controller is not None:
-                self.__formations_view.set_controller(self.__match_controller.get_formations_controller())
-            self.__formations_view.show()
-        else:
-            self.__formations_view.show()
-
+    
 
     def create_cameras_page(self)->None:
         # Create first dock widget
@@ -196,9 +189,10 @@ class MainWindow(QMainWindow):
         self.__buttons_layout = QHBoxLayout()
         self.open_button = QPushButton(" Start Tracking")
 
-        self.__load_team_a = QPushButton(' Fielding Team')
-        self.__load_team_b = QPushButton(' Bowling Team')
+        self.__load_team_a = QPushButton(' Team A')
+        self.__load_team_b = QPushButton(' Team B')
         self.__swap_teams  = QPushButton(" Switch Sides")
+        self.__swap_teams.setEnabled(False)
 
         ico_path = (__ASSETS_DIR__ / 'play-24.ico').resolve().as_posix()
         bg_path = __MINI_MAP_BG__.resolve().as_posix()#(__ASSETS_DIR__ / 'cricket_match_view_bg.png').resolve().as_posix()
@@ -207,7 +201,7 @@ class MainWindow(QMainWindow):
         # self.open_button.setFixedHeight(24)
         self.open_button.setIcon(icon)
         self.open_button.clicked.connect(self.enable_track_window)
-        self.open_button.setDisabled(True)
+        #self.open_button.setDisabled(True)
 
         b_icon_path =  (__ASSETS_DIR__ / 'blue_dot.png').resolve().as_posix()
         b_icon = QIcon(b_icon_path)
@@ -263,27 +257,15 @@ class MainWindow(QMainWindow):
         if self.__tracking_window is not None:
             self.open_button.setDisabled(True)
             return
-        self.__tracking_window = CricketTrackingWidget(self.__match_controller)
-        self.__on_air_window = OnAirWindow()
-
-        self.__tracking_window.untrackedIdsChanged.connect(self.__on_air_window.trackedIdsChangedSlot)
-
-        self.__on_air_window.idButtonClickedSignal.connect(self.__tracking_window.plotIdActivated) 
-        self.__on_air_window.onAirClickedSignal.connect(self.__tracking_window.toggleOnAirMode)   
-
+        self.__tracking_window = TrackingWidget(self.__match_controller)
         self.__tracking_window.show()
-        self.__on_air_window.show()   
         self.open_button.setDisabled(True)
 
     def closeEvent(self, event)->None:
         if self.__tracking_window is not None:
             self.__tracking_window.close()
-        
-        if self.__on_air_window is not None:
-            self.__on_air_window.close()
 
-
-if __name__ == "__main__":
+def main()->None:
     app = QApplication(sys.argv)
     main_window = MainWindow()
 
@@ -297,5 +279,10 @@ if __name__ == "__main__":
     main_window.set_match_controller(match_controller)
     main_window.show()
     app.exec_()
-
     cameras_manager.stop()
+    print("Starting sys.exit()")
+    sys.exit(0)
+    print("sys.exit() complete")
+
+if __name__ == "__main__":
+    main()

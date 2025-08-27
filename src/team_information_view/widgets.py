@@ -164,11 +164,7 @@ class PlayerItem(QWidget):
             self.__text_edit.setText("")
             self.__text.show()
 
-<<<<<<< HEAD
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-=======
     def mousePressEvent(self, event: QMouseEvent ) -> None:
->>>>>>> Rugby_gui
         # On Click, we hide the text and show a text label to set the text
         self.__text.hide()
         self.__text_edit.show()
@@ -308,17 +304,17 @@ class TeamLoadWidget(QWidget):
         self.__is_fielding_team = fielding_team
         self.__match_controller = controller
         self.__positions = [
-            "WKT",  # Wicketkeeper
-            "SLP",  # Slip
-            "GUL",  # Gully
-            "PTN",  # Point
-            "COV",  # Cover
-            "MID",  # Mid-off
-            "MDF",  # Mid-on
-            "MIW",  # Midwicket
-            "SQL",  # Square Leg
-            "FNL",
-            "BOW"
+            "GK",  # Wicketkeeper
+            "PL1",  # Slip
+            "PL2",  # Gully
+            "PL3",  # Point
+            "PL4",  # Cover
+            "PL5",  # Mid-off
+            "PL6",  # Mid-on
+            "PL7",  # Midwicket
+            "PL8",  # Square Leg
+            "PL9",
+            "PL10"
         ]
 
         self.__team_name = "Fielding Team" if fielding_team else "Batting Team"
@@ -509,23 +505,23 @@ class TeamViewWidget(QWidget):
     def __init__(self, controller:MatchController, color, fielding_team, parent=None)->None:
         super().__init__(parent)
         self.__positions = [
-            "WKT",  # Wicketkeeper
-            "SLP",  # Slip
-            "GUL",  # Gully
-            "PTN",  # Point
-            "COV",  # Cover
-            "MID",  # Mid-off
-            "MDF",  # Mid-on
-            "MIW",  # Midwicket
-            "SQL",  # Square Leg
-            "FNL",
-            "BOW"
+            "GK",  # Wicketkeeper
+            "PL1",  # Slip
+            "PL2",  # Gully
+            "PL3",  # Point
+            "PL4",  # Cover
+            "PL5",  # Mid-off
+            "PL6",  # Mid-on
+            "PL7",  # Midwicket
+            "PL8",  # Square Leg
+            "PL9",
+            "PL10"
         ]
         self.__players = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         self.__match_controller = controller
         self.__color = color
         self.__fielding_team = fielding_team
-        self.__team_name = "Fielding Team" if self.__fielding_team else "Batting Team"
+        self.__team_name = "Team A" if self.__fielding_team else "Team B"
         self.__team_color = color
        
         self.__layout = QGridLayout()
@@ -559,11 +555,11 @@ class TeamViewWidget(QWidget):
     
     def set_team_info(self, team_info:dict)->None:
         self.__team_color = team_info['color']
-        self.__team_name = team_info['name']
+        self.__team_name = "Team A" if self.__fielding_team else "Team B"
         self.__fielding_team = team_info['fielding']
         self.set_team_players(team_info['players'])
         self.__team_name_view.setText(f"Name:\t{self.__team_name}")
-        self.__team_formations_view.setText(f"Fielding Team" if self.__fielding_team else f"Batting Team")
+        self.__team_formations_view.setText(f"Team A" if self.__fielding_team else f"Team B")
         self.update()
 
     def update_team_info(self, data)->None:
@@ -616,7 +612,7 @@ class TeamViewWidget(QWidget):
         self.__team_name_view.setObjectName("team-name-view")
         self.__team_name_view.setStyleSheet("#team-name-view{border-bottom:1px solid black; color:white; font-weight:500; font-size:16px;}")
 
-        self.__team_formations_view = QLabel(f"Fielding Team" if self.__fielding_team else f"Batting Team")
+        self.__team_formations_view = QLabel(f"Team A" if self.__fielding_team else f"Team B")
         self.__team_formations_view.setObjectName("team-formations-view")
         self.__team_formations_view.setStyleSheet("#team-formations-view{border-bottom:1px solid black; color:white; font-weight:500; font-size:16px;}")
         
